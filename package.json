@@ -1,0 +1,15 @@
+{
+  "name": "organograma",
+  "version": "1.0.0",
+  "description": "Monorepo para o sistema Organograma Interativo corporativo",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm run dev",
+    "start": "concurrently \"npm run server\" \"npm run client\""
+  },
+  "dependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
