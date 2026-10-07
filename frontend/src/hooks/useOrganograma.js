@@ -392,6 +392,7 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
 
             const isCollapsed = collapsedNodes.has(nodeData.id);
             const hasChildren = nodeData.children && nodeData.children.length > 0;
+            const childrenCount = hasChildren ? nodeData.children.length : 0;
             const canEdit = hasPermissionToEdit ? hasPermissionToEdit(nodeData.id) : false;
 
             newNodes.push({
@@ -402,6 +403,7 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                     ...nodeData,
                     isCollapsed,
                     hasChildren,
+                    childrenCount,
                     isEditMode,
                     canEdit,
                     onNodeClick,

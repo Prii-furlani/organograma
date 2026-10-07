@@ -50,75 +50,27 @@
 }
 
 .jhe-node-card {
-  background-color: var(--jhe-node-bg);
+  background-color: #FFFFFF !important;
   color: var(--jhe-text-main);
-  border: 2.5px solid var(--jhe-border-subtle);
-  border-radius: 0.75rem; /* 12px */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(2, 9, 49, 0.05) !important;
   box-sizing: border-box;
-  padding: 0.5rem 0.5rem;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
   transition: all 0.3s ease-in-out;
   cursor: pointer;
   position: relative;
+  width: 250px !important;
+  max-width: 250px !important;
+  min-height: 88px !important;
 }
 
-/* Dimensões dos Cards por Nível Hierárquico (Design Executivo Proporcional) */
+/* Dimensões unificadas para o novo padrão contemporâneo */
 .type-ceo,
 .level-ceo {
-  width: 230px !important;
-  max-width: 230px !important;
   min-height: 110px !important;
-  height: auto !important;
-  padding: 0.625rem 0.5rem !important;
-}
-
-.type-diretoria,
-.type-oia,
-.level-diretoria {
-  width: 220px !important;
-  max-width: 220px !important;
-  min-height: 105px !important;
-  height: auto !important;
-  padding: 0.5rem 0.625rem !important;
-}
-
-.type-staff,
-.level-staff {
-  width: 205px !important;
-  max-width: 205px !important;
-  min-height: 98px !important;
-  height: auto !important;
-  padding: 0.5rem 0.5rem !important;
-}
-
-.type-gerencia,
-.type-coordenacao,
-.type-unidade,
-.level-gerencia,
-.level-coordenacao {
-  width: 200px !important;
-  max-width: 200px !important;
-  min-height: 96px !important;
-  height: auto !important;
-  padding: 0.5rem 0.5rem !important;
-}
-
-.type-apoio,
-.type-equipe,
-.type-contrato,
-.type-default,
-.level-apoio,
-.level-subordinado {
-  width: 175px !important;
-  max-width: 175px !important;
-  min-height: 86px !important;
-  height: auto !important;
-  padding: 0.4rem 0.4rem !important;
 }
 
 /* Handles de Conexão com Precisão Matemática no Eixo do Card (Zero CSS Inline) */
@@ -180,6 +132,19 @@
 
 .node-expanded {
   opacity: 1;
+}
+
+/* Modificadores de Escopo de Edição (RBAC) */
+.node-locked-scope {
+  opacity: 0.6;
+}
+.node-locked-scope:hover {
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.node-editable-scope {
+  box-shadow: 0 0 0 3px rgba(97, 203, 232, 0.5); /* Destaque visual sutil para cards permitidos */
 }
 
 /* Subtítulo / Badge do Nó (Regras de Tipografia) */
@@ -696,6 +661,123 @@
   background-color: rgba(255,255,255,0.4);
 }
 
+/* =========================================
+   Navbar User Dropdown
+========================================= */
+.user-profile-dropdown {
+    position: relative;
+    display: flex;
+}
+.user-profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+    color: inherit;
+}
+.user-profile-trigger:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.dark .user-profile-trigger:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.user-avatar-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+.user-avatar-small.role-admin { background-color: var(--jhe-primary-darker); }
+.user-avatar-small.role-diretor { background-color: var(--jhe-primary); }
+.user-avatar-small.role-coordenador { background-color: var(--jhe-primary-lighter); color: #020931; }
+.user-avatar-small.role-colaborador { background-color: var(--jhe-text-muted); }
+
+.dropdown-caret {
+    transition: transform 0.2s;
+}
+.dropdown-menu-content {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    background-color: var(--jhe-node-bg);
+    border: 1px solid var(--jhe-border-subtle);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    width: 280px;
+    padding: 0.5rem 0;
+    z-index: 50;
+    color: var(--jhe-text-main);
+}
+.dropdown-header {
+    padding: 0.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+}
+.dropdown-user-name {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+.dropdown-user-email {
+    font-size: 0.75rem;
+    color: var(--jhe-text-muted);
+}
+.dropdown-cargos-list {
+    padding: 0.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.dropdown-section-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--jhe-text-muted);
+    margin-bottom: 0.25rem;
+}
+.dropdown-cargo-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8rem;
+    line-height: 1.25;
+}
+.dropdown-divider {
+    height: 1px;
+    background-color: var(--jhe-border-subtle);
+    margin: 0.5rem 0;
+}
+.dropdown-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.625rem 1rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+    color: var(--jhe-text-main);
+}
+.dropdown-action-btn:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.dark .dropdown-action-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
 /* =========================================================================
    TEMA ESCURO (DARK MODE INSTITUCIONAL DA JHE ENGENHARIA)
    Zero CSS Inline - Estilização completa ativada pela classe '.dark' na <html>
@@ -723,10 +805,10 @@
 
 /* Estilo Base dos Cards (Nodes) no Dark Mode */
 .dark .jhe-node-card {
-  background-color: var(--jhe-node-bg);
-  color: var(--jhe-text-main);
-  border-color: #1E293B;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  background-color: #0D1B38 !important;
+  color: #FFFFFF;
+  border: 1px solid #1E3A68 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Glow suave futurista ao passar o mouse */
@@ -1942,22 +2024,20 @@
   gap: 0.875rem;
 }
 
-.navbar-logo-badge {
-  width: 38px;
-  height: 38px;
-  border-radius: 0.625rem;
-  background-color: var(--jhe-primary);
-  color: #FFFFFF;
+.navbar-logo-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.dark .navbar-logo-badge {
-  background-color: #12284C;
-  color: #61CBE8;
-  border: 1px solid #61CBE8;
+.navbar-logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+.dark .navbar-logo-img {
+  filter: brightness(0.9) contrast(1.2);
 }
 
 .navbar-brand-text {
@@ -3231,8 +3311,203 @@
   color: #F1F5F9 !important;
 }
 
+/* =========================================
+   SISTEMA DE LAYOUT HORIZONTAL DOS CARDS (CONTEMPORÂNEO)
+========================================= */
 
+.node-content-horizontal {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+}
 
+.node-avatar-block {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  background-color: #EAF6FA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #194775;
+}
 
+.dark .node-avatar-block {
+  color: #61CBE8;
+  background-color: rgba(97, 203, 232, 0.12);
+}
 
+.node-avatar-block.squircle {
+  border-radius: 12px;
+}
 
+.node-avatar-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+.node-text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  flex-grow: 1;
+}
+
+.node-text-block .node-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  margin: 0;
+  padding: 0;
+  line-height: 1.2;
+  white-space: normal;
+  width: 100%;
+}
+
+.node-text-block .node-responsavel-text {
+  font-weight: 700;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  color: #B4783C;
+  margin-top: 4px;
+  white-space: normal;
+  width: 100%;
+}
+
+.node-text-block .empty-responsavel {
+  color: var(--jhe-text-muted);
+  font-weight: 400;
+}
+
+.node-text-block .node-area-text {
+  font-size: 11px;
+  color: #64748B;
+  margin-top: 2px;
+  white-space: normal;
+  text-transform: capitalize;
+  width: 100%;
+}
+
+/* Accent Bar superior do Card */
+.node-accent-bar {
+  position: absolute;
+  top: -1.5px;
+  left: -1.5px;
+  right: -1.5px;
+  height: 4px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  background-color: #0E284E;
+}
+
+.dark .node-accent-bar {
+  background-color: #61CBE8;
+}
+
+/* Badge de Pílula Inferior (Botão de Expandir) */
+.node-pill-badge-container {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.node-pill-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background-color: #020931;
+  color: #FFFFFF;
+  border: 1.5px solid #FFFFFF;
+  border-radius: 12px;
+  padding: 2px 8px;
+  min-width: 38px;
+  height: 24px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+}
+
+.dark .node-pill-btn {
+  border-color: #61CBE8;
+}
+
+.node-pill-btn:hover {
+  background-color: #1B4E8C;
+  transform: scale(1.05);
+}
+
+.pill-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pill-count {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Modificadores para Co-CEOs Card com pílula de expandir */
+.node-ceo-card {
+  padding-bottom: 20px !important;
+}
+
+.node-ceo-card .ceo-title {
+  margin-top: 10px;
+}
+
+/* ==============================================================
+   OVERRIDE GLOBAL PARA LIMPEZA DE FUNDO DOS CARDS (ANTI-BLOCOS SÓLIDOS)
+   Isso garante que o backgroundColor do jhe-node-card prevaleça 
+   sobre os velhos estilos de type-* !important que coloriam tudo.
+============================================================== */
+.jhe-node-card.level-diretoria,
+.jhe-node-card.type-diretoria,
+.jhe-node-card.type-oia,
+.jhe-node-card.level-staff,
+.jhe-node-card.type-staff,
+.jhe-node-card.level-coordenacao,
+.jhe-node-card.level-gerencia,
+.jhe-node-card.type-gerencia,
+.jhe-node-card.type-coordenacao,
+.jhe-node-card.type-unidade,
+.jhe-node-card.level-apoio,
+.jhe-node-card.level-subordinado,
+.jhe-node-card.type-apoio,
+.jhe-node-card.type-equipe,
+.jhe-node-card.type-contrato {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: var(--jhe-text-main) !important;
+}
+
+.dark .jhe-node-card.level-diretoria,
+.dark .jhe-node-card.type-diretoria,
+.dark .jhe-node-card.type-oia,
+.dark .jhe-node-card.level-staff,
+.dark .jhe-node-card.type-staff,
+.dark .jhe-node-card.level-coordenacao,
+.dark .jhe-node-card.level-gerencia,
+.dark .jhe-node-card.type-gerencia,
+.dark .jhe-node-card.type-coordenacao,
+.dark .jhe-node-card.type-unidade,
+.dark .jhe-node-card.level-apoio,
+.dark .jhe-node-card.level-subordinado,
+.dark .jhe-node-card.type-apoio,
+.dark .jhe-node-card.type-equipe,
+.dark .jhe-node-card.type-contrato {
+  background-color: #0D1B38 !important;
+  border-color: #1E3A68 !important;
+  color: #FFFFFF !important;
+}

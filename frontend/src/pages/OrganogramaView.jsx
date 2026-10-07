@@ -16,6 +16,7 @@ import HelpFloatingBtn from '../components/HelpFloatingBtn';
 import HelpTooltip from '../components/HelpTooltip';
 import NodeDetailsModal from '../components/NodeDetailsModal';
 import NodeDrawerEditor from '../components/NodeDrawerEditor';
+import TopicEditor from '../components/TopicEditor';
 import LoginModal from '../components/LoginModal';
 import UserManagementModal from '../components/UserManagementModal';
 import { useOrganograma } from '../hooks/useOrganograma';
@@ -141,59 +142,68 @@ function OrganogramaContent() {
 
     return (
         <div className="w-screen h-screen bg-canvas relative overflow-hidden flex flex-col">
-            {/* 1. Navbar Executiva no Topo */}
-            <Navbar 
-                onOpenLoginModal={() => setIsLoginModalOpen(true)}
-                isEditMode={isEditMode}
-                onToggleEditMode={() => setIsEditMode(!isEditMode)}
-                onOpenCreateDrawer={() => handleOpenCreateDrawer(null)}
-                onOpenUserMgmt={() => setIsUserMgmtOpen(true)}
-            />
+            {!isEditMode ? (
+                <>
+                    {/* 1. Navbar Executiva no Topo */}
+                    <Navbar 
+                        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+                        isEditMode={isEditMode}
+                        onToggleEditMode={() => setIsEditMode(!isEditMode)}
+                        onOpenCreateDrawer={() => handleOpenCreateDrawer(null)}
+                        onOpenUserMgmt={() => setIsUserMgmtOpen(true)}
+                    />
 
-            {/* 1.1 Banner de Status do Modo Edição */}
-            <EditModeBanner isEditMode={isEditMode} />
+                    {/* Canvas Principal do React Flow */}
+                    <div className="flex-1 relative w-full h-full">
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            nodeTypes={nodeTypes}
+                            edgeTypes={edgeTypes}
+                            nodesDraggable={false}
+                            nodesConnectable={false}
+                            panOnDrag={!isCanvasLocked}
+                            zoomOnScroll={!isCanvasLocked}
+                            zoomOnPinch={!isCanvasLocked}
+                            panOnScroll={false}
+                            fitView
+                            minZoom={0.1}
+                            maxZoom={2}
+                            className="bg-canvas"
+                        >
+                            <Background color={isDark ? "#1e293b" : "#cbd5e1"} gap={20} size={2} />
+                        </ReactFlow>
 
-            {/* Canvas Principal do React Flow */}
-            <div className="flex-1 relative w-full h-full">
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    nodeTypes={nodeTypes}
-                    edgeTypes={edgeTypes}
-                    nodesDraggable={false}
-                    nodesConnectable={false}
-                    panOnDrag={!isCanvasLocked}
-                    zoomOnScroll={!isCanvasLocked}
-                    zoomOnPinch={!isCanvasLocked}
-                    panOnScroll={false}
-                    fitView
-                    minZoom={0.1}
-                    maxZoom={2}
-                    className="bg-canvas"
-                >
-                    <Background color={isDark ? "#1e293b" : "#cbd5e1"} gap={20} size={2} />
-                </ReactFlow>
+                        {/* 2. Barra Flutuante de Controles no Canto Inferior Esquerdo */}
+                        <CanvasControls 
+                            isDark={isDark}
+                            onToggleDarkMode={toggleDarkMode}
+                            isCanvasLocked={isCanvasLocked}
+                            onToggleCanvasLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                        />
 
-                {/* 2. Barra Flutuante de Controles no Canto Inferior Esquerdo */}
-                <CanvasControls 
-                    isDark={isDark}
-                    onToggleDarkMode={toggleDarkMode}
-                    isCanvasLocked={isCanvasLocked}
-                    onToggleCanvasLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                        {/* 3. Botão Flutuante de Ajuda no Canto Inferior Direito */}
+                        <HelpFloatingBtn 
+                            onClick={() => setShowHelp(!showHelp)}
+                        />
+
+                        {/* 4. Footer Institucional (Copyright) */}
+                        <footer className="jhe-footer">
+                            © 2026 JHE Engenharia. Todos os direitos reservados.
+                        </footer>
+                    </div>
+                </>
+            ) : (
+                <TopicEditor 
+                    treeData={treeData} 
+                    onClose={() => setIsEditMode(false)}
+                    onOpenCreateDrawer={handleOpenCreateDrawer}
+                    onEditNode={handleEditNode}
+                    onRefreshTree={loadData}
                 />
-
-                {/* 3. Botão Flutuante de Ajuda no Canto Inferior Direito */}
-                <HelpFloatingBtn 
-                    onClick={() => setShowHelp(!showHelp)}
-                />
-
-                {/* 4. Footer Institucional (Copyright) */}
-                <footer className="jhe-footer">
-                    © 2026 JHE Engenharia. Todos os direitos reservados.
-                </footer>
-            </div>
+            )}
             
             {/* Modais da Aplicação */}
             <HelpTooltip 

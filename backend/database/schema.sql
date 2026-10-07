@@ -20,48 +20,44 @@ CREATE TABLE IF NOT EXISTS `niveis_hierarquicos` (
   `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único do nível hierárquico',
   `slug` VARCHAR(50) NOT NULL UNIQUE COMMENT 'Identificador único textual (ex: ceo, staff, diretoria)',
   `nome` VARCHAR(100) NOT NULL COMMENT 'Nome de exibição institucional (ex: Co-CEOs, Staff, Diretoria)',
-  `ordem_hierarquica` INT NOT NULL DEFAULT 1 COMMENT 'Ordem de precedência hierárquica (1 a N)',
-  `classe_css` VARCHAR(100) NOT NULL COMMENT 'Classe CSS semântica definida em organograma.css',
+  `ordem_hierarquica` INT NOT NULL DEFAULT 1 COMMENT 'Ordem de precedência hierárquica (0 a N)',
+  `classe_css` VARCHAR(50) NOT NULL COMMENT 'Classe CSS semântica definida em organograma.css',
   `ativo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag de status: 1 = ativo, 0 = inativo',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação'
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabela de níveis hierárquicos institucionais JHE';
 
--- Dados Iniciais (Seed) dos Níveis Hierárquicos Institucionais JHE
+-- Dados Iniciais (Seed) dos Níveis Hierárquicos Institucionais JHE (Ordem ajustada 0-4)
 INSERT INTO `niveis_hierarquicos` (`id`, `slug`, `nome`, `ordem_hierarquica`, `classe_css`, `ativo`) VALUES
-(1, 'ceo', 'Co-CEOs', 1, 'level-ceo', 1),
-(2, 'staff', 'Staff', 2, 'level-staff', 1),
-(3, 'diretoria', 'Diretoria', 3, 'level-diretoria', 1),
-(4, 'coordenacao', 'Coordenação', 4, 'level-coordenacao', 1),
-(5, 'gerencia', 'Gerência', 5, 'level-coordenacao', 1),
-(6, 'apoio', 'Apoio', 6, 'level-subordinado', 1),
-(7, 'equipe', 'Equipe', 7, 'level-subordinado', 1),
-(8, 'unidade', 'Unidade de Negócios', 5, 'level-coordenacao', 1),
-(9, 'contrato', 'Contrato', 7, 'level-subordinado', 1),
-(10, 'oia', 'OIA', 3, 'level-diretoria', 1)
+(1, 'ceo', 'Co-CEOs', 0, 'level-ceo', 1),
+(2, 'staff', 'Assessoria / Staff', 1, 'level-staff', 1),
+(3, 'diretoria', 'Diretoria', 2, 'level-diretoria', 1),
+(4, 'coordenacao', 'Coordenação', 3, 'level-coordenacao', 1),
+(5, 'gerencia', 'Gerência', 3, 'level-coordenacao', 1),
+(6, 'apoio', 'Apoio', 4, 'level-subordinado', 1),
+(7, 'equipe', 'Equipe', 4, 'level-subordinado', 1),
+(8, 'unidade', 'Unidade de Negócios', 3, 'level-coordenacao', 1),
+(9, 'contrato', 'Contrato', 4, 'level-subordinado', 1),
+(10, 'oia', 'OIA', 2, 'level-diretoria', 1)
 ON DUPLICATE KEY UPDATE `nome` = VALUES(`nome`), `classe_css` = VALUES(`classe_css`), `ordem_hierarquica` = VALUES(`ordem_hierarquica`);
 
 -- =============================================================================
 -- TABELA: organograma_nos
 -- O QUE FAZ: Armazena a estrutura hierárquica completa do mapa mental / organograma.
--- COMO FUNCIONA:
---   - 'parent_id' aponta para o nó pai.
---   - 'parent_id' = NULL define o nó raiz (ex.: Co-CEOs).
---   - 'nivel_id' associa o nó ao seu nível hierárquico na tabela niveis_hierarquicos.
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS `organograma_nos` (
   `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único sequencial do nó',
   `parent_id` INT NULL DEFAULT NULL COMMENT 'Chave estrangeira para o nó pai. NULL indica raiz (ex: Co-CEOs)',
-  `titulo` VARCHAR(150) NOT NULL COMMENT 'Nome exibido no card (Ex: Diretoria Comercial, Licitação)',
+  `titulo` VARCHAR(255) NOT NULL COMMENT 'Nome exibido no card (Ex: Diretoria Comercial, Licitação)',
   `nivel_id` INT NOT NULL DEFAULT 7 COMMENT 'Chave estrangeira referenciando niveis_hierarquicos(id)',
-  `responsavel` VARCHAR(150) NULL DEFAULT NULL COMMENT 'Nome da pessoa líder, diretor ou gestor responsável',
+  `responsavel` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Nome da pessoa líder, diretor ou gestor responsável',
   `lideres_json` JSON NULL DEFAULT NULL COMMENT 'Lista estruturada de líderes (usada em Co-CEOs para nomes e fotos)',
   `email_contato` VARCHAR(150) NULL DEFAULT NULL COMMENT 'E-mail corporativo do setor ou responsável',
   `descricao` TEXT NULL COMMENT 'Texto explicativo exibido no modal/tooltip sobre as atribuições do setor',
   `icone` VARCHAR(50) NULL DEFAULT 'users' COMMENT 'Identificador do ícone Lucide para o card',
   `ordem` INT NOT NULL DEFAULT 0 COMMENT 'Posição horizontal de exibição em relação aos irmãos',
   `ativo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag de status: 1 = ativo/visível, 0 = inativo/oculto',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data e hora da inclusão no sistema',
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data e hora da última modificação',
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data e hora da inclusão no sistema',
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data e hora da última modificação',
 
   CONSTRAINT `fk_organograma_parent`
     FOREIGN KEY (`parent_id`)
@@ -80,7 +76,6 @@ CREATE INDEX `idx_organograma_parent` ON `organograma_nos` (`parent_id`);
 CREATE INDEX `idx_organograma_nivel` ON `organograma_nos` (`nivel_id`);
 CREATE INDEX `idx_organograma_ativo_ordem` ON `organograma_nos` (`ativo`, `ordem`);
 
-
 -- =============================================================================
 -- DADOS INICIAIS (SEED) DO ORGANOGRAMA
 -- Mapeamento completo e fiel à estrutura do organograma corporativo JHE.
@@ -88,10 +83,11 @@ CREATE INDEX `idx_organograma_ativo_ordem` ON `organograma_nos` (`ativo`, `ordem
 
 -- 1. NÓ RAIZ (Co-CEOs) [nivel_id = 1]
 INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`, `lideres_json`) VALUES
-(1, NULL, 'Co-CEOs', 1, 'Liderança executiva máxima da empresa.', 1, '[{"nome": "Dr. Hélio", "foto": "/avatars/helio.png"}, {"nome": "Dr. Viol", "foto": "/avatars/viol.png"}]');
+(1, NULL, 'Co-CEOs', 1, 'Liderança executiva máxima da empresa.', 1, '[{"nome": "Dr. Hélio", "foto": "/avatars/helio.png"}, {"nome": "Dr. Viol", "foto": "/avatars/viol.png"}]')
+ON DUPLICATE KEY UPDATE `titulo`=VALUES(`titulo`);
 
 -- 2. STAFF / ASSESSORIAS DIRETAS (Ligadas aos Co-CEOs) [nivel_id = 2 (staff), 6 (apoio), 7 (equipe), 5 (gerencia)]
-INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
+INSERT IGNORE INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
 (2, 1, 'Secretaria Executiva', 2, 'Suporte administrativo e executivo direto aos Co-CEOs.', 1),
 (3, 1, 'Compliance', 2, 'Garante conformidade com normas, integridade corporativa e governança.', 2),
 (4, 3, 'Apoio ao Compliance', 6, 'Equipe de apoio e suporte operacional de compliance.', 1),
@@ -109,7 +105,7 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descric
 (16, 12, 'Equipe de Auditoria', 7, 'Auditores de conformidade das inspeções.', 4);
 
 -- 3. DIRETORIA COMERCIAL E SUBORDINADOS [nivel_id = 3 (diretoria), 5 (gerencia), 7 (equipe), 6 (apoio)]
-INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
+INSERT IGNORE INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
 (20, 1, 'Diretoria Comercial', 3, 'Gestão das oportunidades de negócios, vendas públicas, privadas e marketing.', 2),
 (21, 20, 'Consultoria / Novos Negócios', 5, 'Prospecção e estruturação de novas frentes de negócio.', 1),
 (22, 20, 'Licitação', 5, 'Análise de editais e condução de licitações públicas.', 2),
@@ -122,7 +118,7 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descric
 (29, 20, 'Marketing e Comunicação', 5, 'Posicionamento de marca, mídia e comunicação externa.', 4);
 
 -- 4. DIRETORIA DE OPERAÇÕES E SUBORDINADOS [nivel_id = 3 (diretoria), 5 (gerencia), 6 (apoio), 8 (unidade), 9 (contrato), 7 (equipe)]
-INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
+INSERT IGNORE INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
 (40, 1, 'Diretoria de Operações', 3, 'Gestão operacional de obras, contratos e entregas técnicas.', 3),
 (41, 40, 'Administrativo Operacional', 5, 'Gestão administrativa de campo e suporte a obras.', 1),
 (42, 40, 'Metodologia Técnico-Social', 5, 'Desenvolvimento de métodos de atuação técnico-social em contratos.', 2),
@@ -156,7 +152,7 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descric
 (70, 40, 'Unidade de Negócios DIA', 8, 'Unidade de Negócios DIA.', 9);
 
 -- 5. DIRETORIA ADMINISTRATIVA E SUBORDINADOS [nivel_id = 3 (diretoria), 5 (gerencia), 6 (apoio), 7 (equipe)]
-INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
+INSERT IGNORE INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
 (80, 1, 'Diretoria Administrativa', 3, 'Gestão financeira, contábil, compras, recursos humanos e jurídico.', 4),
 (81, 80, 'Controladoria', 5, 'Supervisão contábil, fiscal, suprimentos e infraestrutura predial.', 1),
 (82, 80, 'Contabilidade', 5, 'Gestão fiscal e relatórios societários.', 2),
@@ -189,7 +185,7 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descric
 (109, 108, 'Apoio à Manutenção', 6, 'Assistência aos serviços de manutenção predial.', 1);
 
 -- 6. DIRETORIA DE TECNOLOGIA E INOVAÇÃO E SUBORDINADOS [nivel_id = 3 (diretoria), 5 (gerencia), 6 (apoio), 7 (equipe)]
-INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
+INSERT IGNORE INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descricao`, `ordem`) VALUES
 (120, 1, 'Diretoria de Tecnologia e Inovação', 3, 'Liderança técnica em sistemas, dados, infraestrutura e inovação digital.', 5),
 (121, 120, 'BI e Dados', 5, 'Business Intelligence, análise de dados e dashboards executivos.', 1),
 (122, 121, 'Apoio a Dados', 6, 'Engenharia, extração e saneamento de bases de dados.', 1),
@@ -208,25 +204,25 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `nivel_id`, `descric
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS `usuarios` (
   `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único do usuário',
-  `nome_completo` VARCHAR(150) NOT NULL COMMENT 'Nome completo do usuário',
-  `email` VARCHAR(150) NOT NULL UNIQUE COMMENT 'E-mail corporativo único para login',
+  `nome_completo` VARCHAR(255) NOT NULL COMMENT 'Nome completo do usuário',
+  `email` VARCHAR(191) NOT NULL UNIQUE COMMENT 'E-mail corporativo único para login',
   `senha_hash` VARCHAR(255) NOT NULL COMMENT 'Hash da senha criptografada com bcrypt',
   `role_global` ENUM('admin', 'diretor', 'coordenador', 'colaborador') NOT NULL DEFAULT 'colaborador' COMMENT 'Papel global do usuário',
   `ativo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag de status: 1 = ativo, 0 = inativo',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data de última modificação'
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data de última modificação'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabela de usuários cadastrados';
 
 -- =============================================================================
 -- TABELA: usuario_cargos_nos (Relacionamento N:N)
--- O QUE FAZ: Associa um usuário a um ou múltiplos nós do organograma (acumulação de cargos).
+-- O QUE FAZ: Associa um usuário a um ou múltiplos nós do organograma.
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS `usuario_cargos_nos` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `usuario_id` INT NOT NULL COMMENT 'Chave estrangeira para o usuário',
   `no_id` INT NOT NULL COMMENT 'Chave estrangeira para o nó do organograma',
   `papel_no_cargo` VARCHAR(100) NOT NULL DEFAULT 'Titular' COMMENT 'Ex: Titular, Interino, Acumulação',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT `fk_ucn_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_ucn_no` FOREIGN KEY (`no_id`) REFERENCES `organograma_nos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   UNIQUE KEY `uk_usuario_no` (`usuario_id`, `no_id`)

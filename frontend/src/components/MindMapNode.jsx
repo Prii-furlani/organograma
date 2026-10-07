@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Users, Building, Shield, Target, Activity, Settings, BarChart, Edit3, Lock } from 'lucide-react';
+import { Users, Building, Shield, Target, Activity, Settings, BarChart, Edit3, Lock, ChevronDown, ChevronRight } from 'lucide-react';
 
 /**
  * Mapeia os ícones armazenados no banco para os componentes Lucide reais.
@@ -54,6 +54,7 @@ function MindMapNode({ data }) {
     
     const isCollapsed = data.isCollapsed;
     const hasChildren = data.hasChildren;
+    const childrenCount = data.childrenCount || 0;
     const isEditMode = data.isEditMode;
     const canEdit = data.canEdit;
 
@@ -79,12 +80,13 @@ function MindMapNode({ data }) {
     if (data.tipo === 'ceo' && data.lideres_json && Array.isArray(data.lideres_json)) {
         return (
             <div 
-                className={`jhe-node-card ${themeClass} ${collapseClass} ${scopeClass}`}
+                className={`jhe-node-card node-ceo-card ${themeClass} ${collapseClass} ${scopeClass}`}
                 onClick={() => {
                     if (data.onNodeClick) data.onNodeClick(data);
                 }}
                 title={nodeTooltip}
             >
+                <div className="node-accent-bar" />
                 <Handle type="target" position={Position.Top} className="node-handle node-handle-top" />
                 
                 {isEditMode && canEdit && (
@@ -109,7 +111,7 @@ function MindMapNode({ data }) {
                         const fallbackInitials = idx === 0 ? 'DH' : 'DV';
                         return (
                             <div key={idx} className="ceo-leader-item">
-                                <div className="ceo-avatar-wrapper">
+                                <div className="ceo-avatar-wrapper squircle">
                                     <img 
                                         src={lider.foto} 
                                         alt={lider.nome} 
@@ -130,16 +132,19 @@ function MindMapNode({ data }) {
                 </div>
 
                 {hasChildren && (
-                    <button 
-                        className="collapse-btn"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (data.onToggleCollapse) data.onToggleCollapse(data.id);
-                        }}
-                        title={isCollapsed ? "Expandir subordinados" : "Recolher subordinados"}
-                    >
-                        {isCollapsed ? '+' : '−'}
-                    </button>
+                    <div className="node-pill-badge-container">
+                        <button 
+                            className="node-pill-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (data.onToggleCollapse) data.onToggleCollapse(data.id);
+                            }}
+                            title={isCollapsed ? "Expandir subordinados" : "Recolher subordinados"}
+                        >
+                            <span className="pill-icon">{isCollapsed ? <ChevronRight size={12} strokeWidth={3}/> : <ChevronDown size={12} strokeWidth={3}/>}</span>
+                            <span className="pill-count">{childrenCount}</span>
+                        </button>
+                    </div>
                 )}
 
                 <Handle type="source" position={Position.Bottom} className="node-handle node-handle-bottom" />
@@ -150,12 +155,14 @@ function MindMapNode({ data }) {
     // Layout padrão para os demais nós
     return (
         <div 
-            className={`jhe-node-card ${themeClass} ${collapseClass} ${scopeClass}`}
+            className={`jhe-node-card node-standard-card ${themeClass} ${collapseClass} ${scopeClass}`}
             onClick={() => {
                 if (data.onNodeClick) data.onNodeClick(data);
             }}
             title={nodeTooltip}
         >
+            <div className="node-accent-bar" />
+            
             {/* Conector Superior */}
             <Handle type="target" position={Position.Top} className="node-handle node-handle-top" />
             
@@ -185,43 +192,48 @@ function MindMapNode({ data }) {
                 </div>
             )}
 
-            {/* Ícone e Título */}
-            <div className="icon-container">
-                <IconComponent size={24} />
+            {/* Layout Interno - Duas Colunas (Icone + Textos) */}
+            <div className="node-content-horizontal">
+                {/* Coluna Esquerda: Squircle */}
+                <div className="node-avatar-block squircle">
+                    <IconComponent size={20} className="node-avatar-icon" />
+                </div>
+                
+                {/* Coluna Direita: Textos Hierárquicos */}
+                <div className="node-text-block">
+                    <div className="node-title">{data.titulo}</div>
+                    
+                    {data.descricao || data.responsavel ? (
+                        <div className="node-responsavel-text">{data.descricao || data.responsavel}</div>
+                    ) : (
+                        <div className="node-responsavel-text empty-responsavel">—</div>
+                    )}
+                    
+                    <div className="node-area-text">{data.tipo || 'Área'}</div>
+                </div>
             </div>
-            
-            <h3 className="node-title">
-                {data.titulo}
-            </h3>
-            
-            <span className="node-badge text-muted">
-                {data.tipo}
-            </span>
-            
-            {data.responsavel && (
-                <span className="node-responsavel text-muted">
-                    {data.responsavel}
-                </span>
-            )}
 
-            {/* Botão de expandir/recolher filhos (+ / -) */}
+            {/* Expander Pill */}
             {hasChildren && (
-                <button 
-                    className="collapse-btn"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (data.onToggleCollapse) data.onToggleCollapse(data.id);
-                    }}
-                    title={isCollapsed ? "Expandir subordinados" : "Recolher subordinados"}
-                >
-                    {isCollapsed ? '+' : '−'}
-                </button>
+                <div className="node-pill-badge-container">
+                    <button 
+                        className="node-pill-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (data.onToggleCollapse) data.onToggleCollapse(data.id);
+                        }}
+                        title={isCollapsed ? "Expandir subordinados" : "Recolher subordinados"}
+                    >
+                        <span className="pill-icon">{isCollapsed ? <ChevronRight size={12} strokeWidth={3}/> : <ChevronDown size={12} strokeWidth={3}/>}</span>
+                        <span className="pill-count">{childrenCount}</span>
+                    </button>
+                </div>
             )}
 
-                {/* Conector Inferior */}
-                <Handle type="source" position={Position.Bottom} id="bottom" className="node-handle node-handle-bottom" />
-            </div>
-        );
-    }
+            {/* Conector Inferior */}
+            <Handle type="source" position={Position.Bottom} id="bottom" className="node-handle node-handle-bottom" />
+        </div>
+    );
+}
 
 export default MindMapNode;
