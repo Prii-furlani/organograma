@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { ArrowLeft, Search, Plus, User, Edit3, Trash2, ChevronDown, ChevronRight, GripVertical, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
-import { updateNode, deleteNode } from '../api/organogramaApi';
+import { deleteNode } from '../api/organogramaApi';
+import ConfirmMoveModal from './ConfirmMoveModal';
 
 const TopicItem = ({ 
     node, 
@@ -10,7 +11,8 @@ const TopicItem = ({
     onOpenCreateDrawer, 
     onEditNode, 
     onRefreshTree,
-    searchQuery
+    searchQuery,
+    onMoveRequest
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -70,25 +72,7 @@ const TopicItem = ({
         const draggedId = e.dataTransfer.getData('text/plain');
         if (!draggedId || draggedId === String(node.id)) return;
 
-        Swal.fire({
-            title: 'Alterar subordinação?',
-            text: `Deseja mover a área selecionada para baixo de "${node.titulo}"?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#194775',
-            cancelButtonColor: '#cbd5e1',
-            confirmButtonText: 'Sim, mover'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    await updateNode(draggedId, { parent_id: node.id });
-                    onRefreshTree();
-                    Swal.fire('Movido!', 'A estrutura foi atualizada.', 'success');
-                } catch (error) {
-                    Swal.fire('Erro', 'Não foi possível mover a área.', 'error');
-                }
-            }
-        });
+        onMoveRequest(draggedId, node);
     };
 
     const handleDelete = () => {
@@ -182,17 +166,59 @@ const TopicItem = ({
                             onEditNode={onEditNode}
                             onRefreshTree={onRefreshTree}
                             searchQuery={searchQuery}
+                            onMoveRequest={onMoveRequest}
                         />
                     ))}
                 </div>
             )}
         </div>
     );
+// Helper function to find a node by ID in tree
+const findNodeInTree = (nodes, id) => {
+    for (const node of nodes) {
+        if (String(node.id) === String(id)) return node;
+        if (node.children) {
+            const found = findNodeInTree(node.children, id);
+            if (found) return found;
+        }
+    }
+    return null;
+};
+
+// Verifica se childId é um descendente de rootNode
+const isDescendant = (rootNode, childId) => {
+    if (!rootNode.children) return false;
+    for (const child of rootNode.children) {
+        if (String(child.id) === String(childId)) return true;
+        if (isDescendant(child, childId)) return true;
+    }
+    return false;
 };
 
 function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefreshTree }) {
     const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Estados do Modal de Mover
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [moveDraggedNode, setMoveDraggedNode] = useState(null);
+    const [moveTargetNode, setMoveTargetNode] = useState(null);
+
+    const handleMoveRequest = (draggedId, targetNode) => {
+        const draggedNode = findNodeInTree(treeData, draggedId);
+        if (!draggedNode) return;
+
+        // Validação: Bloquear mover para a própria subárvore
+        if (isDescendant(draggedNode, targetNode.id)) {
+            Swal.fire('Movimento inválido', 'Você não pode mover uma área para dentro de si mesma ou de seus próprios subordinados.', 'error');
+            return;
+        }
+
+        // Tudo certo, abre o modal
+        setMoveDraggedNode(draggedNode);
+        setMoveTargetNode(targetNode);
+        setIsMoveModalOpen(true);
+    };
 
     return (
         <div className="absolute inset-0 bg-[#F8FAFC] flex flex-col z-50 overflow-hidden">
@@ -270,6 +296,7 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
                                 onEditNode={onEditNode}
                                 onRefreshTree={onRefreshTree}
                                 searchQuery={searchQuery}
+                                onMoveRequest={handleMoveRequest}
                             />
                         ))}
                         
@@ -281,6 +308,14 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
                     </div>
                 </div>
             </div>
+
+            <ConfirmMoveModal 
+                isOpen={isMoveModalOpen}
+                onClose={() => setIsMoveModalOpen(false)}
+                draggedNode={moveDraggedNode}
+                targetNode={moveTargetNode}
+                onRefreshTree={onRefreshTree}
+            />
         </div>
     );
 }
