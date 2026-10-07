@@ -1,12 +1,12 @@
 /**
  * Cabeçalho Arquitetural: Componente visual que representa cada nó no React Flow.
  * Estilizado sem uso de inline styles, utilizando classes mapeadas e variáveis de CSS (paleta JHE).
- * Contém um botão expansível (+/-) e ícones baseados no tipo do nó.
+ * Exibe botões de expandir (+/-) e botão flutuante de Edição Rápida quando no Modo Edição.
  */
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Users, Building, Shield, Target, Activity, Settings, BarChart } from 'lucide-react';
+import { Users, Building, Shield, Target, Activity, Settings, BarChart, Edit3, Lock } from 'lucide-react';
 
 /**
  * Mapeia os ícones armazenados no banco para os componentes Lucide reais.
@@ -19,7 +19,6 @@ const IconMap = {
     activity: Activity,
     settings: Settings,
     barChart: BarChart,
-    // Padrão
     default: Users
 };
 
@@ -31,11 +30,13 @@ const getLevelClasses = (tipo) => {
         case 'ceo':
             return 'level-ceo type-ceo';
         case 'diretoria':
+        case 'oia':
             return 'level-diretoria type-diretoria';
+        case 'staff':
+            return 'level-staff type-staff';
         case 'gerencia':
         case 'coordenacao':
         case 'unidade':
-        case 'staff':
             return `level-coordenacao level-gerencia type-${tipo || 'gerencia'}`;
         case 'apoio':
         case 'equipe':
@@ -46,43 +47,86 @@ const getLevelClasses = (tipo) => {
 };
 
 /**
- * Renderiza um nó do organograma com título, tipo e botão de expansão de filhos.
+ * Renderiza um nó do organograma com título, tipo e botões de ação e expansão.
  */
 function MindMapNode({ data }) {
     const IconComponent = IconMap[data.icone] || IconMap.default;
     
     const isCollapsed = data.isCollapsed;
     const hasChildren = data.hasChildren;
+    const isEditMode = data.isEditMode;
+    const canEdit = data.canEdit;
 
     // Define a classe semântica de nível hierárquico e tema sem CSS inline
     const themeClass = getLevelClasses(data.tipo);
     const collapseClass = isCollapsed ? 'node-collapsed' : 'node-expanded';
 
+    // Determina a classe de escopo RBAC no Modo Edição
+    let scopeClass = '';
+    let nodeTooltip = 'Clique no nó para ver detalhes no modal lateral';
+
+    if (isEditMode) {
+        if (canEdit) {
+            scopeClass = 'node-editable-scope';
+            nodeTooltip = 'Você possui permissão de edição para esta área.';
+        } else {
+            scopeClass = 'node-locked-scope';
+            nodeTooltip = 'Área sob gestão de outra liderança (somente leitura)';
+        }
+    }
+
     // Layout especial para o card dos Co-CEOs
     if (data.tipo === 'ceo' && data.lideres_json && Array.isArray(data.lideres_json)) {
         return (
             <div 
-                className={`jhe-node-card ${themeClass} ${collapseClass}`}
+                className={`jhe-node-card ${themeClass} ${collapseClass} ${scopeClass}`}
                 onClick={() => {
                     if (data.onNodeClick) data.onNodeClick(data);
                 }}
-                title="Clique no nó para ver detalhes no modal lateral"
+                title={nodeTooltip}
             >
-                <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none" />
+                <Handle type="target" position={Position.Top} className="node-handle node-handle-top" />
                 
+                {isEditMode && canEdit && (
+                    <button
+                        className="node-quick-edit-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (data.onEditNode) data.onEditNode(data);
+                        }}
+                        title="Editar esta área"
+                    >
+                        <Edit3 size={14} />
+                    </button>
+                )}
+
                 <h3 className="node-title ceo-title">
                     {data.titulo}
                 </h3>
                 
                 <div className="ceo-leaders-container">
-                    {data.lideres_json.map((lider, idx) => (
-                        <div key={idx} className="ceo-leader-item">
-                            <div className="ceo-avatar-wrapper">
-                                <img src={lider.foto} alt={lider.nome} className="ceo-avatar" onError={(e) => { e.target.src = 'https://ui-avatars.com/api/?name=' + lider.nome + '&background=0f172a&color=fff'; }} />
+                    {data.lideres_json.map((lider, idx) => {
+                        const fallbackInitials = idx === 0 ? 'DH' : 'DV';
+                        return (
+                            <div key={idx} className="ceo-leader-item">
+                                <div className="ceo-avatar-wrapper">
+                                    <img 
+                                        src={lider.foto} 
+                                        alt={lider.nome} 
+                                        className="ceo-avatar" 
+                                        onError={(e) => { 
+                                            e.target.style.display = 'none'; 
+                                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; 
+                                        }} 
+                                    />
+                                    <div className="ceo-avatar-fallback">
+                                        {fallbackInitials}
+                                    </div>
+                                </div>
+                                <span className="ceo-name">{lider.nome}</span>
                             </div>
-                            <span className="ceo-name">{lider.nome}</span>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {hasChildren && (
@@ -98,7 +142,7 @@ function MindMapNode({ data }) {
                     </button>
                 )}
 
-                <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-transparent !border-none" />
+                <Handle type="source" position={Position.Bottom} className="node-handle node-handle-bottom" />
             </div>
         );
     }
@@ -106,21 +150,41 @@ function MindMapNode({ data }) {
     // Layout padrão para os demais nós
     return (
         <div 
-            className={`jhe-node-card ${themeClass} ${collapseClass}`}
+            className={`jhe-node-card ${themeClass} ${collapseClass} ${scopeClass}`}
             onClick={() => {
                 if (data.onNodeClick) data.onNodeClick(data);
             }}
-            title="Clique no nó para ver detalhes no modal lateral"
+            title={nodeTooltip}
         >
-            {/* Conector Superior (Entrada única para conexões normais) */}
-            <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none" />
+            {/* Conector Superior */}
+            <Handle type="target" position={Position.Top} className="node-handle node-handle-top" />
             
-            {/* Conectores Laterais Exclusivos para a Espinha Dorsal, Barramento e Contratos */}
-            <Handle type="target" position={Position.Left} id="left-target" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
-            <Handle type="target" position={Position.Right} id="right-target" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
-            <Handle type="source" position={Position.Left} id="left" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
-            <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
+            {/* Conectores Laterais Exclusivos para a Espinha Dorsal e Barramento */}
+            <Handle type="target" position={Position.Left} id="left-target" className="node-handle node-handle-left-target" />
+            <Handle type="target" position={Position.Right} id="right-target" className="node-handle node-handle-right-target" />
+            <Handle type="source" position={Position.Left} id="left" className="node-handle node-handle-left" />
+            <Handle type="source" position={Position.Right} id="right" className="node-handle node-handle-right" />
             
+            {/* Botão Flutuante de Edição Rápida (Exibido no Modo Edição para Usuários com Permissão) */}
+            {isEditMode && canEdit && (
+                <button
+                    className="node-quick-edit-btn"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (data.onEditNode) data.onEditNode(data);
+                    }}
+                    title="Editar esta área"
+                >
+                    <Edit3 size={14} />
+                </button>
+            )}
+
+            {isEditMode && !canEdit && (
+                <div className="node-locked-badge" title="Área sob gestão de outra liderança (somente leitura)">
+                    <Lock size={12} />
+                </div>
+            )}
+
             {/* Ícone e Título */}
             <div className="icon-container">
                 <IconComponent size={24} />
@@ -154,10 +218,10 @@ function MindMapNode({ data }) {
                 </button>
             )}
 
-            {/* Conector Inferior (Saída única) */}
-            <Handle type="source" position={Position.Bottom} id="bottom" className="!w-2 !h-2 !bg-transparent !border-none" />
-        </div>
-    );
-}
+                {/* Conector Inferior */}
+                <Handle type="source" position={Position.Bottom} id="bottom" className="node-handle node-handle-bottom" />
+            </div>
+        );
+    }
 
 export default MindMapNode;

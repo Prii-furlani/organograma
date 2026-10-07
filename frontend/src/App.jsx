@@ -6,13 +6,16 @@
 import React from 'react';
 import OrganogramaView from './pages/OrganogramaView';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 
 function App() {
     return (
         <AuthProvider>
-            <main className="w-screen h-screen">
-                <OrganogramaView />
-            </main>
+            <ToastProvider>
+                <main className="w-screen h-screen">
+                    <OrganogramaView />
+                </main>
+            </ToastProvider>
         </AuthProvider>
     );
 }

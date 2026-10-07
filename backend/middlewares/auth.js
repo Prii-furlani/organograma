@@ -123,10 +123,21 @@ async function checkNodeEditPermission(req, res, next) {
     }
 }
 
+/**
+ * Middleware para verificar se o usuário autenticado possui perfil de Administrador global.
+ */
+function checkAdminRole(req, res, next) {
+    if (!req.user || req.user.role_global !== 'admin') {
+        return res.status(403).json({ error: 'Acesso negado: funcionalidade restrita a administradores do sistema.' });
+    }
+    next();
+}
+
 module.exports = {
     JWT_SECRET,
     authenticateToken,
     optionalAuthToken,
     getUserPermittedNodeIds,
-    checkNodeEditPermission
+    checkNodeEditPermission,
+    checkAdminRole
 };

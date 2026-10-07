@@ -1,22 +1,33 @@
 /**
  * Cabeçalho Arquitetural: Barra de Ferramentas e Navegação Superior (Toolbar / Navbar).
  * Fornece controles de zoom, centralização, alternância de Dark Mode, ajuda,
- * além do status de autenticação (Login/Logout) e exibição do usuário e cargos ativas.
+ * além do toggle "Modo Edição", botão "+ Nova Área" e estatísticas do perfil do usuário logado.
  */
 
 import React from 'react';
-import { ZoomIn, ZoomOut, Maximize, HelpCircle, Sun, Moon, LogIn, LogOut, UserCheck, Shield } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, HelpCircle, Sun, Moon, LogIn, LogOut, UserCheck, Shield, Edit3, Plus, Eye } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useAuth } from '../context/AuthContext';
 
-function Toolbar({ onToggleHelp, isDark, onToggleDarkMode, onOpenLoginModal }) {
+function Toolbar({ 
+    onToggleHelp, 
+    isDark, 
+    onToggleDarkMode, 
+    onOpenLoginModal,
+    isEditMode,
+    onToggleEditMode,
+    onOpenCreateDrawer
+}) {
     const { zoomIn, zoomOut, fitView } = useReactFlow();
     const { user, isAuthenticated, logout } = useAuth();
+
+    // Verifica se o usuário tem permissão para usar o Modo Edição
+    const canUseEditMode = isAuthenticated && user && ['admin', 'diretor', 'coordenador'].includes(user.role_global);
 
     // Formata o resumo do cargo principal do usuário
     const getCargoBadge = () => {
         if (!user) return '';
-        if (user.role_global === 'admin') return 'Administrador Geral';
+        if (user.role_global === 'admin') return 'Administrador';
         if (user.cargos && user.cargos.length > 0) {
             return user.cargos[0].no_titulo;
         }
@@ -68,6 +79,42 @@ function Toolbar({ onToggleHelp, isDark, onToggleDarkMode, onOpenLoginModal }) {
                 <HelpCircle size={16} />
                 Como usar
             </button>
+
+            {/* Toggle de Modo Edição (apenas para gestores/admins autenticados) */}
+            {canUseEditMode && (
+                <>
+                    <div className="toolbar-divider"></div>
+                    <button
+                        onClick={onToggleEditMode}
+                        className={`edit-mode-toggle-btn ${isEditMode ? 'edit-mode-active' : 'edit-mode-inactive'}`}
+                        title={isEditMode ? "Desativar Modo Edição (Modo Apresentação)" : "Ativar Modo Edição"}
+                    >
+                        {isEditMode ? (
+                            <>
+                                <Edit3 size={16} />
+                                Modo Edição: ATIVO
+                            </>
+                        ) : (
+                            <>
+                                <Eye size={16} />
+                                Modo Apresentação
+                            </>
+                        )}
+                    </button>
+
+                    {/* Botão "+ Nova Área" flutuante exibido no Modo Edição */}
+                    {isEditMode && (
+                        <button
+                            onClick={onOpenCreateDrawer}
+                            className="create-area-btn"
+                            title="Criar uma nova área ou setor"
+                        >
+                            <Plus size={16} />
+                            Nova Área
+                        </button>
+                    )}
+                </>
+            )}
 
             <div className="toolbar-divider"></div>
 

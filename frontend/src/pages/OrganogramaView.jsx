@@ -1,32 +1,40 @@
 /**
- * Cabeçalho Arquitetural: Tela Principal do Sistema (Visualização e Gerenciamento do Organograma).
- * Integra React Flow, Toolbar, Modal de Login, Modal de Detalhes e RBAC.
+ * Cabeçalho Arquitetural: Tela Principal do Sistema (Visualização Executiva e Gerenciamento).
+ * Layout descentralizado com Navbar superior executiva, Toolbar flutuante no canto inferior esquerdo,
+ * botão flutuante de Ajuda no canto inferior direito e interatividade travável do canvas.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ReactFlow, Background, Controls, useReactFlow, ReactFlowProvider } from '@xyflow/react';
+import { ReactFlow, Background, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import MindMapNode from '../components/MindMapNode';
-import Toolbar from '../components/Toolbar';
+import Navbar from '../components/Navbar';
+import EditModeBanner from '../components/EditModeBanner';
+import CanvasControls from '../components/CanvasControls';
+import HelpFloatingBtn from '../components/HelpFloatingBtn';
 import HelpTooltip from '../components/HelpTooltip';
 import NodeDetailsModal from '../components/NodeDetailsModal';
+import NodeDrawerEditor from '../components/NodeDrawerEditor';
 import LoginModal from '../components/LoginModal';
+import UserManagementModal from '../components/UserManagementModal';
 import { useOrganograma } from '../hooks/useOrganograma';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { fetchOrganogramaTree } from '../api/organogramaApi';
+import { fetchOrganogramaTree, fetchFlatNodesList } from '../api/organogramaApi';
 import { Loader2 } from 'lucide-react';
 import { Handle, Position } from '@xyflow/react';
 
+import { StraightHorizontalEdge, StraightVerticalEdge, StepLTurnEdge } from '../components/CustomEdges';
+
 // Nó auxiliar invisível para roteamento ortogonal (Espinha Dorsal e Barramento)
 const JunctionNode = ({ id }) => (
-    <div style={{ width: 1, height: 1, pointerEvents: 'none' }}>
-        <Handle type="target" position={Position.Top} id="top" style={{ opacity: 0 }} />
-        <Handle type="source" position={Position.Bottom} id="bottom" style={{ opacity: 0 }} />
-        <Handle type="source" position={Position.Left} id="left" style={{ opacity: 0 }} />
-        <Handle type="target" position={Position.Left} id="left-target" style={{ opacity: 0 }} />
-        <Handle type="source" position={Position.Right} id="right" style={{ opacity: 0 }} />
-        <Handle type="target" position={Position.Right} id="right-target" style={{ opacity: 0 }} />
+    <div className="junction-node-wrapper">
+        <Handle type="target" position={Position.Top} id="top" className="junction-handle" />
+        <Handle type="source" position={Position.Bottom} id="bottom" className="junction-handle" />
+        <Handle type="source" position={Position.Left} id="left" className="junction-handle" />
+        <Handle type="target" position={Position.Left} id="left-target" className="junction-handle" />
+        <Handle type="source" position={Position.Right} id="right" className="junction-handle" />
+        <Handle type="target" position={Position.Right} id="right-target" className="junction-handle" />
     </div>
 );
 
@@ -35,22 +43,44 @@ const nodeTypes = {
     junction: JunctionNode
 };
 
+const edgeTypes = {
+    straightHorizontal: StraightHorizontalEdge,
+    straightVertical: StraightVerticalEdge,
+    stepLTurn: StepLTurnEdge,
+    straight: StraightHorizontalEdge
+};
+
 function OrganogramaContent() {
     const [treeData, setTreeData] = useState([]);
+    const [allNodesFlat, setAllNodesFlat] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     
     const [selectedNode, setSelectedNode] = useState(null);
-    const [showHelp, setShowHelp] = useState(true);
+    const [showHelp, setShowHelp] = useState(false); // Fecha ajuda por padrão em apresentações
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isUserMgmtOpen, setIsUserMgmtOpen] = useState(false);
     
-    const { fitView } = useReactFlow();
+    // Estados do Modo Edição e Drawer Editor
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [drawerNodeData, setDrawerNodeData] = useState(null);
+    const [parentNodeForCreate, setParentNodeForCreate] = useState(null);
+
+    // Estado da Trava do Canvas (Lock/Unlock)
+    const [isCanvasLocked, setIsCanvasLocked] = useState(false);
+
     const { isDark, toggleDarkMode } = useDarkMode();
 
+    // Carrega a árvore e a lista plana para os selects do Drawer
     const loadData = useCallback(async () => {
         try {
-            const data = await fetchOrganogramaTree();
-            setTreeData(data);
+            const [tree, flat] = await Promise.all([
+                fetchOrganogramaTree(),
+                fetchFlatNodesList()
+            ]);
+            setTreeData(tree);
+            setAllNodesFlat(flat);
         } catch (err) {
             console.error("Erro ao carregar mapa:", err);
             setError("Não foi possível carregar o organograma. Verifique o servidor.");
@@ -59,18 +89,35 @@ function OrganogramaContent() {
         }
     }, []);
 
-    // Busca os dados da API ao montar o componente
     useEffect(() => {
         loadData();
     }, [loadData]);
 
-    // Lógica para clique no nó e abertura do modal
     const handleNodeClick = useCallback((nodeData) => {
         setSelectedNode(nodeData);
     }, []);
 
+    // Abertura do Drawer de Edição para um nó existente
+    const handleEditNode = useCallback((nodeData) => {
+        setDrawerNodeData(nodeData);
+        setParentNodeForCreate(null);
+        setIsDrawerOpen(true);
+    }, []);
+
+    // Abertura do Drawer para Criar Nova Área
+    const handleOpenCreateDrawer = useCallback((parentNode = null) => {
+        setDrawerNodeData(null);
+        setParentNodeForCreate(parentNode);
+        setIsDrawerOpen(true);
+    }, []);
+
     // Hook customizado que gerencia o estado dos nós visuais
-    const { nodes, edges, onNodesChange, onEdgesChange } = useOrganograma(treeData, handleNodeClick);
+    const { nodes, edges, onNodesChange, onEdgesChange } = useOrganograma(
+        treeData, 
+        handleNodeClick,
+        isEditMode,
+        handleEditNode
+    );
 
     if (isLoading) {
         return (
@@ -93,14 +140,62 @@ function OrganogramaContent() {
     }
 
     return (
-        <div className="w-screen h-screen bg-canvas relative overflow-hidden">
-            <Toolbar 
-                onToggleHelp={() => setShowHelp(!showHelp)} 
-                isDark={isDark}
-                onToggleDarkMode={toggleDarkMode}
+        <div className="w-screen h-screen bg-canvas relative overflow-hidden flex flex-col">
+            {/* 1. Navbar Executiva no Topo */}
+            <Navbar 
                 onOpenLoginModal={() => setIsLoginModalOpen(true)}
+                isEditMode={isEditMode}
+                onToggleEditMode={() => setIsEditMode(!isEditMode)}
+                onOpenCreateDrawer={() => handleOpenCreateDrawer(null)}
+                onOpenUserMgmt={() => setIsUserMgmtOpen(true)}
             />
+
+            {/* 1.1 Banner de Status do Modo Edição */}
+            <EditModeBanner isEditMode={isEditMode} />
+
+            {/* Canvas Principal do React Flow */}
+            <div className="flex-1 relative w-full h-full">
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
+                    nodesDraggable={false}
+                    nodesConnectable={false}
+                    panOnDrag={!isCanvasLocked}
+                    zoomOnScroll={!isCanvasLocked}
+                    zoomOnPinch={!isCanvasLocked}
+                    panOnScroll={false}
+                    fitView
+                    minZoom={0.1}
+                    maxZoom={2}
+                    className="bg-canvas"
+                >
+                    <Background color={isDark ? "#1e293b" : "#cbd5e1"} gap={20} size={2} />
+                </ReactFlow>
+
+                {/* 2. Barra Flutuante de Controles no Canto Inferior Esquerdo */}
+                <CanvasControls 
+                    isDark={isDark}
+                    onToggleDarkMode={toggleDarkMode}
+                    isCanvasLocked={isCanvasLocked}
+                    onToggleCanvasLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                />
+
+                {/* 3. Botão Flutuante de Ajuda no Canto Inferior Direito */}
+                <HelpFloatingBtn 
+                    onClick={() => setShowHelp(!showHelp)}
+                />
+
+                {/* 4. Footer Institucional (Copyright) */}
+                <footer className="jhe-footer">
+                    © 2026 JHE Engenharia. Todos os direitos reservados.
+                </footer>
+            </div>
             
+            {/* Modais da Aplicação */}
             <HelpTooltip 
                 isVisible={showHelp} 
                 onClose={() => setShowHelp(false)} 
@@ -111,24 +206,21 @@ function OrganogramaContent() {
                 onClose={() => setIsLoginModalOpen(false)}
             />
 
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                nodesDraggable={false}
-                nodesConnectable={false}
-                fitView
-                minZoom={0.1}
-                maxZoom={2}
-                className="bg-canvas"
-            >
-                <Background color={isDark ? "#1e293b" : "#cbd5e1"} gap={20} size={2} />
-                <Controls className="hidden md:flex" />
-            </ReactFlow>
+            <UserManagementModal
+                isOpen={isUserMgmtOpen}
+                onClose={() => setIsUserMgmtOpen(false)}
+                allNodesFlat={allNodesFlat}
+            />
 
-            {/* Modal Lateral de Detalhes e Gerenciamento */}
+            <NodeDrawerEditor
+                isOpen={isDrawerOpen}
+                nodeData={drawerNodeData}
+                parentNodeForCreate={parentNodeForCreate}
+                allNodesFlat={allNodesFlat}
+                onClose={() => setIsDrawerOpen(false)}
+                onRefreshTree={loadData}
+            />
+
             <NodeDetailsModal 
                 nodeData={selectedNode} 
                 onClose={() => setSelectedNode(null)} 

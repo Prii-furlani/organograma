@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, User, Info, Edit, Plus, Trash2, ShieldCheck, Lock, Save, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateNode, createNode, deleteNode } from '../api/organogramaApi';
+import AlertDialog from './AlertDialog';
 
 function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
     const { hasPermissionToEdit } = useAuth();
@@ -17,6 +18,7 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
     const [isAddingChild, setIsAddingChild] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [actionError, setActionError] = useState(null);
+    const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
     // Formulário de Edição
     const [formData, setFormData] = useState({
@@ -60,16 +62,34 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
     // Salva edições do nó atual
     const handleSaveEdit = async (e) => {
         e.preventDefault();
+
+        if (!formData.titulo || formData.titulo.trim() === '') {
+            setActionError('O nome/título da área é um campo obrigatório.');
+            return;
+        }
+        if (!formData.tipo) {
+            setActionError('O tipo/nível hierárquico é um campo obrigatório.');
+            return;
+        }
+
         setIsSubmitting(true);
         setActionError(null);
 
+        const payload = {
+            ...nodeData,
+            nome: formData.titulo.trim(),
+            titulo: formData.titulo.trim(),
+            tipo: formData.tipo,
+            responsavel: formData.responsavel ? formData.responsavel.trim() : null,
+            email_contato: formData.email_contato ? formData.email_contato.trim() : null,
+            descricao: formData.descricao ? formData.descricao.trim() : null,
+            cor_tema: formData.cor_tema || '#0284c7'
+        };
+
         try {
-            await updateNode(nodeData.id, {
-                ...nodeData,
-                ...formData
-            });
+            await updateNode(nodeData.id, payload);
             setIsEditing(false);
-            if (onRefreshTree) onRefreshTree();
+            if (onRefreshTree) await onRefreshTree();
         } catch (err) {
             setActionError(err.response?.data?.error || 'Erro ao salvar alterações do nó.');
         } finally {
@@ -80,17 +100,34 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
     // Cria um novo nó filho
     const handleAddChild = async (e) => {
         e.preventDefault();
+
+        if (!newChildData.titulo || newChildData.titulo.trim() === '') {
+            setActionError('O nome/título da área é um campo obrigatório.');
+            return;
+        }
+        if (!newChildData.tipo) {
+            setActionError('O tipo/nível hierárquico é um campo obrigatório.');
+            return;
+        }
+
         setIsSubmitting(true);
         setActionError(null);
 
+        const payload = {
+            parent_id: nodeData.id,
+            nome: newChildData.titulo.trim(),
+            titulo: newChildData.titulo.trim(),
+            tipo: newChildData.tipo,
+            responsavel: newChildData.responsavel ? newChildData.responsavel.trim() : null,
+            email_contato: newChildData.email_contato ? newChildData.email_contato.trim() : null,
+            descricao: newChildData.descricao ? newChildData.descricao.trim() : null
+        };
+
         try {
-            await createNode({
-                parent_id: nodeData.id,
-                ...newChildData
-            });
+            await createNode(payload);
             setIsAddingChild(false);
             setNewChildData({ titulo: '', tipo: 'equipe', responsavel: '', email_contato: '', descricao: '' });
-            if (onRefreshTree) onRefreshTree();
+            if (onRefreshTree) await onRefreshTree();
         } catch (err) {
             setActionError(err.response?.data?.error || 'Erro ao adicionar subordinado.');
         } finally {
@@ -98,17 +135,21 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
         }
     };
 
-    // Exclui o nó atual
-    const handleDeleteNode = async () => {
-        if (!window.confirm(`Tem certeza que deseja excluir "${nodeData.titulo}" e todos os seus subordinados em cascata?`)) {
-            return;
-        }
+    // Abre o modal de confirmação de segurança
+    const handleTriggerDelete = () => {
+        setIsDeleteAlertOpen(true);
+    };
+
+    // Exclui o nó atual após confirmação no AlertDialog
+    const handleConfirmDelete = async () => {
+        if (!nodeData) return;
 
         setIsSubmitting(true);
         setActionError(null);
 
         try {
             await deleteNode(nodeData.id);
+            setIsDeleteAlertOpen(false);
             onClose();
             if (onRefreshTree) onRefreshTree();
         } catch (err) {
@@ -163,7 +204,7 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
                         <h3 className="modal-form-title">Editar Setor / Nó</h3>
                         
                         <div className="form-group">
-                            <label className="form-label">Título do Setor</label>
+                            <label className="form-label required">Título / Nome da Área</label>
                             <input
                                 type="text"
                                 required
@@ -174,11 +215,12 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
                         </div>
 
                         <div className="form-group">
-                            <label className="form-label">Tipo de Nó</label>
+                            <label className="form-label required">Tipo / Nível Hierárquico</label>
                             <select
                                 value={formData.tipo}
                                 onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
                                 className="form-select"
+                                required
                             >
                                 <option value="diretoria">Diretoria</option>
                                 <option value="gerencia">Gerência</option>
@@ -248,7 +290,7 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
                         <h3 className="modal-form-title">Adicionar Subordinado a "{nodeData.titulo}"</h3>
                         
                         <div className="form-group">
-                            <label className="form-label">Título do Novo Nó</label>
+                            <label className="form-label required">Título / Nome da Área</label>
                             <input
                                 type="text"
                                 required
@@ -260,11 +302,12 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
                         </div>
 
                         <div className="form-group">
-                            <label className="form-label">Tipo de Nó</label>
+                            <label className="form-label required">Tipo / Nível Hierárquico</label>
                             <select
                                 value={newChildData.tipo}
                                 onChange={(e) => setNewChildData({ ...newChildData, tipo: e.target.value })}
                                 className="form-select"
+                                required
                             >
                                 <option value="equipe">Equipe / Célula</option>
                                 <option value="gerencia">Gerência</option>
@@ -356,7 +399,7 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
                                         <Plus size={16} /> Add Subordinado
                                     </button>
                                     <button
-                                        onClick={handleDeleteNode}
+                                        onClick={handleTriggerDelete}
                                         className="action-btn action-delete"
                                     >
                                         <Trash2 size={16} /> Excluir Setor
@@ -374,6 +417,17 @@ function NodeDetailsModal({ nodeData, onClose, onRefreshTree }) {
                     Fechar
                 </button>
             </div>
+
+            {/* Modal de Confirmação de Segurança de Exclusão */}
+            <AlertDialog
+                isOpen={isDeleteAlertOpen}
+                title="Tem certeza que deseja excluir esta área?"
+                nodeTitle={nodeData.titulo}
+                childrenCount={nodeData.children?.length || 0}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setIsDeleteAlertOpen(false)}
+                isSubmitting={isSubmitting}
+            />
         </div>
     );
 }

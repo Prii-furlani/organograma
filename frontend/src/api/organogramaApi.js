@@ -31,12 +31,30 @@ export const fetchOrganogramaTree = async () => {
 };
 
 /**
+ * Busca a lista de níveis hierárquicos institucionais JHE.
+ * @returns {Promise<Array>} Retorna a lista de níveis hierárquicos.
+ */
+export const fetchNiveisHierarquicos = async () => {
+    const response = await api.get('/organograma/niveis');
+    return response.data;
+};
+
+/**
+ * Busca a lista plana de todos os nós (usada no select de nó pai do Drawer).
+ * @returns {Promise<Array>} Retorna lista plana { id, parent_id, titulo, tipo, responsavel }.
+ */
+export const fetchFlatNodesList = async () => {
+    const response = await api.get('/organograma/nos/flat');
+    return response.data;
+};
+
+/**
  * Cria um novo nó no banco de dados.
  * @param {Object} nodeData - Dados do nó a ser criado
  * @returns {Promise<Object>} Resposta da criação
  */
 export const createNode = async (nodeData) => {
-    const response = await api.post('/organograma', nodeData);
+    const response = await api.post('/organograma/nos', nodeData);
     return response.data;
 };
 
@@ -47,7 +65,7 @@ export const createNode = async (nodeData) => {
  * @returns {Promise<Object>} Resposta da atualização
  */
 export const updateNode = async (id, nodeData) => {
-    const response = await api.put(`/organograma/${id}`, nodeData);
+    const response = await api.put(`/organograma/nos/${id}`, nodeData);
     return response.data;
 };
 
@@ -57,6 +75,38 @@ export const updateNode = async (id, nodeData) => {
  * @returns {Promise<Object>} Resposta da exclusão
  */
 export const deleteNode = async (id) => {
-    const response = await api.delete(`/organograma/${id}`);
+    const response = await api.delete(`/organograma/nos/${id}`);
+    return response.data;
+};
+
+/**
+ * Busca a lista de usuários cadastrados (apenas Admin).
+ */
+export const fetchUsersList = async () => {
+    const response = await api.get('/usuarios');
+    return response.data;
+};
+
+/**
+ * Cadastra um novo usuário colaborador.
+ */
+export const createUserData = async (userData) => {
+    const response = await api.post('/usuarios', userData);
+    return response.data;
+};
+
+/**
+ * Atualiza um usuário existente.
+ */
+export const updateUserData = async (id, userData) => {
+    const response = await api.put(`/usuarios/${id}`, userData);
+    return response.data;
+};
+
+/**
+ * Exclui um usuário pelo ID.
+ */
+export const deleteUserData = async (id) => {
+    const response = await api.delete(`/usuarios/${id}`);
     return response.data;
 };
