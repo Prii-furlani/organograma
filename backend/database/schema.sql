@@ -26,14 +26,15 @@ CREATE TABLE IF NOT EXISTS `organograma_nos` (
   `parent_id` INT NULL DEFAULT NULL COMMENT 'Chave estrangeira para o nó pai. NULL indica raiz (ex: Co-CEOs)',
   `titulo` VARCHAR(150) NOT NULL COMMENT 'Nome exibido no card (Ex: Diretoria Comercial, Licitação)',
   `tipo` ENUM(
-      'ceo',          -- Alta liderança executiva
-      'diretoria',    -- Grandes diretorias da organização
-      'staff',        -- Áreas de apoio direto e assessoria da presidência
-      'gerencia',     -- Gerências e coordenações
-      'unidade',      -- Unidades setoriais de negócio
-      'contrato',     -- Contratos operacionais vinculados
-      'equipe',       -- Células operacionais, núcleos ou grupos de trabalho
-      'apoio'         -- Funções acessórias ou de suporte direto a uma célula
+      'ceo',          -- Alta liderança executiva (Nível 0)
+      'diretoria',    -- Grandes diretorias da organização (Nível 1)
+      'gerencia',     -- Gerências executivas (Nível 2)
+      'coordenacao',  -- Coordenações de área (Nível 2)
+      'unidade',      -- Unidades setoriais de negócio (Nível 2)
+      'staff',        -- Áreas de apoio direto e assessoria da presidência (Nível 2)
+      'equipe',       -- Células operacionais, núcleos ou grupos de trabalho (Nível 3)
+      'contrato',     -- Contratos operacionais vinculados (Nível 3)
+      'apoio'         -- Funções acessórias ou de suporte direto a uma célula (Nível 3)
   ) NOT NULL DEFAULT 'equipe' COMMENT 'Classificação do nó para layout, cores e permissões',
   `responsavel` VARCHAR(150) NULL DEFAULT NULL COMMENT 'Nome da pessoa líder, diretor ou gestor responsável',
   `lideres_json` JSON NULL DEFAULT NULL COMMENT 'Lista estruturada de líderes (usada em Co-CEOs para nomes e fotos)',
@@ -137,17 +138,17 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `tipo`, `descricao`,
 INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `tipo`, `descricao`, `cor_tema`, `ordem`) VALUES
 (80, 1, 'Diretoria Administrativa', 'diretoria', 'Gestão financeira, contábil, compras, recursos humanos e jurídico.', '#d97706', 4),
 (81, 80, 'Controladoria', 'gerencia', 'Supervisão contábil, fiscal, suprimentos e infraestrutura predial.', '#f59e0b', 1),
-(82, 81, 'Contabilidade', 'equipe', 'Gestão fiscal e relatórios societários.', '#fbbf24', 1),
+(82, 80, 'Contabilidade', 'gerencia', 'Gestão fiscal e relatórios societários.', '#f59e0b', 2),
 (83, 82, 'Contabilidade Geral', 'apoio', 'Lançamentos contábeis e fechamentos de balanço.', '#fde68a', 1),
 (84, 82, 'Contabilidade Fiscal', 'apoio', 'Apuração de tributos e conformidade com o fisco.', '#fde68a', 2),
-(85, 81, 'Administrativo (Controladoria)', 'equipe', 'Suporte aos relatórios de controladoria.', '#fbbf24', 2),
-(86, 81, 'Gestão Estratégica de Compras', 'equipe', 'Compras corporativas, negociações estratégicas e cotações.', '#fbbf24', 3),
+(85, 80, 'Administrativo', 'gerencia', 'Gestão de compras, facilities, patrimônio e guarda documental.', '#f59e0b', 3),
+(86, 85, 'Gestão Estratégica de Compras', 'equipe', 'Compras corporativas, negociações estratégicas e cotações.', '#fbbf24', 1),
 (87, 86, 'Aquisição de Ativos, Equipamentos e Serviços Técnicos', 'apoio', 'Compra de bens duráveis e contratação técnica especializada.', '#fde68a', 1),
 (88, 87, 'Apoio Técnico para Aquisição', 'apoio', 'Validação técnica dos editais de compras.', '#fef3c7', 1),
 (89, 86, 'Equipe: Compras de Bens de Consumo', 'apoio', 'Compras recorrentes e suprimentos diários.', '#fde68a', 2),
-(90, 81, 'Facilities / Serviços Gerais', 'equipe', 'Manutenção predial e administração do espaço corporativo.', '#fbbf24', 4),
-(91, 90, 'Gestão de Patrimônio', 'apoio', 'Controle e tombamento de ativos e móveis.', '#fde68a', 1),
-(92, 90, 'Arquivos', 'apoio', 'Guarda documental física e digital da companhia.', '#fde68a', 2),
+(90, 85, 'Facilities / Serviços Gerais', 'equipe', 'Manutenção predial e administração do espaço corporativo.', '#fbbf24', 2),
+(91, 85, 'Gestão de Patrimônio', 'apoio', 'Controle e tombamento de ativos e móveis.', '#fde68a', 3),
+(92, 85, 'Arquivos', 'apoio', 'Guarda documental física e digital da companhia.', '#fde68a', 4),
 (93, 80, 'Financeiro', 'gerencia', 'Gestão do fluxo de caixa, pagamentos e recebimentos.', '#f59e0b', 2),
 (94, 93, 'Contas a Pagar', 'equipe', 'Processamento e liquidação das obrigações da empresa.', '#fbbf24', 1),
 (95, 93, 'Contas a Receber', 'equipe', 'Cobrança, faturamento e recebíveis de clientes.', '#fbbf24', 2),
@@ -179,3 +180,49 @@ INSERT INTO `organograma_nos` (`id`, `parent_id`, `titulo`, `tipo`, `descricao`,
 (128, 120, 'Inovação', 'gerencia', 'Pesquisa de novas tecnologias e ideação de produtos.', '#8b5cf6', 4),
 (129, 128, 'Negócios e Inovação', 'equipe', 'Alinhamento da tecnologia com as necessidades de negócio.', '#c4b5fd', 1),
 (130, 128, 'Product Owner / Especialista em Requisitos', 'apoio', 'Levantamento de histórias de usuário, requisitos e backlog.', '#ddd6fe', 1);
+
+-- =============================================================================
+-- TABELA: usuarios
+-- O QUE FAZ: Armazena os usuários credenciados no sistema de organograma.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `usuarios` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único do usuário',
+  `nome_completo` VARCHAR(150) NOT NULL COMMENT 'Nome completo do usuário',
+  `email` VARCHAR(150) NOT NULL UNIQUE COMMENT 'E-mail corporativo único para login',
+  `senha_hash` VARCHAR(255) NOT NULL COMMENT 'Hash da senha criptografada com bcrypt',
+  `role_global` ENUM('admin', 'diretor', 'coordenador', 'colaborador') NOT NULL DEFAULT 'colaborador' COMMENT 'Papel global do usuário',
+  `ativo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag de status: 1 = ativo, 0 = inativo',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data de última modificação'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabela de usuários cadastrados';
+
+-- =============================================================================
+-- TABELA: usuario_cargos_nos (Relacionamento N:N)
+-- O QUE FAZ: Associa um usuário a um ou múltiplos nós do organograma (acumulação de cargos).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `usuario_cargos_nos` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` INT NOT NULL COMMENT 'Chave estrangeira para o usuário',
+  `no_id` INT NOT NULL COMMENT 'Chave estrangeira para o nó do organograma',
+  `papel_no_cargo` VARCHAR(100) NOT NULL DEFAULT 'Titular' COMMENT 'Ex: Titular, Interino, Acumulação',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_ucn_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_ucn_no` FOREIGN KEY (`no_id`) REFERENCES `organograma_nos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  UNIQUE KEY `uk_usuario_no` (`usuario_id`, `no_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Vínculos N:N entre usuários e cargos/nós do organograma';
+
+-- =============================================================================
+-- DADOS INICIAIS DE USUÁRIOS E PERMISSÕES (SEED)
+-- Admin (admin@jhe.com.br / admin123)
+-- Leandro (leandro@jhe.com.br / leandro123)
+-- =============================================================================
+INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `senha_hash`, `role_global`, `ativo`) VALUES
+(1, 'Administrador do Sistema', 'admin@jhe.com.br', '$2b$10$OpRhpntsUipE3m1.67pI6uyL4OzeLH3gJnq2FihfpV4u3N/BMv/PW', 'admin', 1),
+(2, 'Leandro Furlani', 'leandro@jhe.com.br', '$2b$10$FsmsI91RPiMGKqIqoaUA1.RLY17nh0Vo0mIBtdKhalSaaBk6SrLyq', 'diretor', 1)
+ON DUPLICATE KEY UPDATE `nome_completo` = VALUES(`nome_completo`);
+
+INSERT INTO `usuario_cargos_nos` (`usuario_id`, `no_id`, `papel_no_cargo`) VALUES
+(2, 120, 'Titular'),
+(2, 128, 'Acumulação')
+ON DUPLICATE KEY UPDATE `papel_no_cargo` = VALUES(`papel_no_cargo`);
+

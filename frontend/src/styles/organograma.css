@@ -68,86 +68,276 @@
   opacity: 1;
 }
 
+/* Subtítulo / Badge do Nó (Regras de Tipografia) */
+.node-badge,
+.jhe-node-badge,
+.jhe-node-subtitle,
+.jhe-node-role {
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 /* =========================================
-   Temas baseados no 'tipo' do nó
-   Mapeia o TIPO para as cores JHE
+   SISTEMA DE HIERARQUIA VISUAL (DESIGN TOKENS JHE)
+   Cores escalonadas por Nível Hierárquico (Light & Dark)
 ========================================= */
 
-/* CEO (Liderança Executiva Máxima) */
+/* --- NÍVEL 0: Co-CEOs (Alta Liderança Executiva) --- */
+.level-ceo,
 .type-ceo { 
-  background-color: #020931; 
-  border-color: #020931; 
-  color: #FFFFFF;
+  background-color: #020931 !important; 
+  border-color: #61CBE8 !important; 
+  color: #FFFFFF !important;
 }
-.type-ceo .ceo-title, .type-ceo .ceo-name { color: #FFFFFF; }
-.type-ceo .ceo-avatar-wrapper { border-color: #FFFFFF; }
-.type-ceo .icon-container { background-color: rgba(255, 255, 255, 0.1); color: #FFF; }
-.type-ceo .collapse-btn { border-color: #FFFFFF; color: #FFFFFF; background-color: rgba(255, 255, 255, 0.1); }
-.type-ceo .collapse-btn:hover { background-color: #FFFFFF; color: #020931; }
+.level-ceo .node-title,
+.level-ceo .ceo-title, 
+.level-ceo .ceo-name,
+.type-ceo .node-title,
+.type-ceo .ceo-title, 
+.type-ceo .ceo-name { 
+  color: #FFFFFF !important; 
+}
+.level-ceo .ceo-avatar-wrapper,
+.type-ceo .ceo-avatar-wrapper { 
+  border-color: #61CBE8; 
+}
+.level-ceo .icon-container,
+.type-ceo .icon-container { 
+  background-color: rgba(97, 203, 232, 0.2); 
+  color: #61CBE8; 
+}
+.level-ceo .node-badge,
+.type-ceo .node-badge {
+  color: #61CBE8 !important;
+}
+.level-ceo .collapse-btn,
+.type-ceo .collapse-btn { 
+  border-color: #61CBE8; 
+  color: #FFFFFF; 
+  background-color: rgba(255, 255, 255, 0.1); 
+}
+.level-ceo .collapse-btn:hover,
+.type-ceo .collapse-btn:hover { 
+  background-color: #61CBE8; 
+  color: #020931; 
+}
 
-/* Diretoria (Fundo azul corporativo, texto branco) */
+/* --- NÍVEL 1: Diretorias (Ex: Tecnologia e Inovação, Comercial, Operações, Adm) --- */
+.level-diretoria,
 .type-diretoria { 
-  background-color: var(--jhe-primary); 
-  border-color: var(--jhe-primary); 
-  color: #FFFFFF;
+  background-color: #194775 !important; /* Azul Petróleo Oficial JHE */
+  border-color: #020931 !important;     /* Borda sólida escura */
+  color: #FFFFFF !important;
 }
-.type-diretoria .node-title, .type-diretoria .node-responsavel { color: #FFFFFF; }
-.type-diretoria .icon-container { background-color: rgba(255, 255, 255, 0.15); color: #FFF; }
-.type-diretoria .collapse-btn { border-color: #FFFFFF; color: #FFFFFF; background-color: rgba(255, 255, 255, 0.1); }
-.type-diretoria .collapse-btn:hover { background-color: #FFFFFF; color: var(--jhe-primary); }
-
-/* Staff (Fundo branco, borda e texto azuis) */
-.type-staff, .type-apoio { 
+.level-diretoria .node-title,
+.type-diretoria .node-title { 
+  color: #FFFFFF !important; 
+  font-weight: 700 !important;
+}
+.level-diretoria .node-responsavel,
+.type-diretoria .node-responsavel { 
+  color: #E2E8F0 !important; 
+}
+.level-diretoria .icon-container,
+.type-diretoria .icon-container { 
+  background-color: rgba(255, 255, 255, 0.18); 
+  color: #FFFFFF; 
+}
+.level-diretoria .node-badge,
+.type-diretoria .node-badge {
+  color: #61CBE8 !important;
+}
+.level-diretoria .collapse-btn,
+.type-diretoria .collapse-btn { 
+  border-color: #FFFFFF; 
+  color: #FFFFFF; 
+  background-color: rgba(255, 255, 255, 0.12); 
+}
+.level-diretoria .collapse-btn:hover,
+.type-diretoria .collapse-btn:hover { 
   background-color: #FFFFFF; 
-  border-color: var(--jhe-primary); 
-  color: var(--jhe-primary);
+  color: #194775; 
 }
-.type-staff .node-title, .type-staff .node-responsavel, .type-apoio .node-title, .type-apoio .node-responsavel { color: var(--jhe-primary); }
-.type-staff .icon-container, .type-apoio .icon-container { background-color: var(--jhe-bg-light); color: var(--jhe-primary); }
-.type-staff .collapse-btn, .type-apoio .collapse-btn { border-color: var(--jhe-primary); color: var(--jhe-primary); background-color: #FFF; }
-.type-staff .collapse-btn:hover, .type-apoio .collapse-btn:hover { background-color: var(--jhe-primary); color: #FFFFFF; }
 
-/* Gerência e Unidades de Negócio (Secundário / Engenharia) */
-.type-gerencia, .type-unidade { border-color: var(--jhe-secondary); background-color: #FFF; color: var(--jhe-text-main); }
-.type-gerencia .icon-container, .type-unidade .icon-container { background-color: var(--jhe-secondary); color: #FFF; }
-.type-gerencia .collapse-btn, .type-unidade .collapse-btn { border-color: var(--jhe-secondary); color: var(--jhe-secondary); }
+/* --- NÍVEL 2: Coordenações / Gerências / Unidades / Staff (Ex: BI e Dados, Gov TI) --- */
+.level-coordenacao,
+.level-gerencia,
+.type-gerencia,
+.type-coordenacao,
+.type-unidade,
+.type-staff { 
+  background-color: #61CBE8 !important; /* Azul Ciano Médio */
+  border-color: #194775 !important;     /* Borda Azul Petróleo JHE */
+  color: #020931 !important;           /* Alto contraste */
+}
+.level-coordenacao .node-title,
+.level-gerencia .node-title,
+.type-gerencia .node-title,
+.type-coordenacao .node-title,
+.type-unidade .node-title,
+.type-staff .node-title { 
+  color: #020931 !important; 
+  font-weight: 700 !important;
+}
+.level-coordenacao .node-responsavel,
+.level-gerencia .node-responsavel,
+.type-gerencia .node-responsavel,
+.type-coordenacao .node-responsavel,
+.type-unidade .node-responsavel,
+.type-staff .node-responsavel { 
+  color: #0F2C4A !important; 
+  font-weight: 600 !important;
+}
+.level-coordenacao .icon-container,
+.level-gerencia .icon-container,
+.type-gerencia .icon-container,
+.type-coordenacao .icon-container,
+.type-unidade .icon-container,
+.type-staff .icon-container { 
+  background-color: #194775; 
+  color: #FFFFFF; 
+}
+.level-coordenacao .node-badge,
+.level-gerencia .node-badge,
+.type-gerencia .node-badge,
+.type-coordenacao .node-badge,
+.type-unidade .node-badge,
+.type-staff .node-badge {
+  color: #194775 !important;
+  font-weight: 600 !important;
+}
+.level-coordenacao .collapse-btn,
+.level-gerencia .collapse-btn,
+.type-gerencia .collapse-btn,
+.type-coordenacao .collapse-btn,
+.type-unidade .collapse-btn,
+.type-staff .collapse-btn { 
+  border-color: #194775; 
+  color: #194775; 
+  background-color: #FFFFFF; 
+}
+.level-coordenacao .collapse-btn:hover,
+.level-gerencia .collapse-btn:hover,
+.type-gerencia .collapse-btn:hover,
+.type-coordenacao .collapse-btn:hover,
+.type-unidade .collapse-btn:hover,
+.type-staff .collapse-btn:hover { 
+  background-color: #194775; 
+  color: #FFFFFF; 
+}
 
-/* Contrato, Equipe (Operacional) */
-.type-contrato, .type-equipe { border-color: var(--jhe-secondary-lighter); background-color: #FFF; color: var(--jhe-text-main); }
-.type-contrato .icon-container, .type-equipe .icon-container { background-color: var(--jhe-secondary-lighter); color: var(--jhe-text-main); }
-.type-contrato .collapse-btn, .type-equipe .collapse-btn { border-color: var(--jhe-secondary-lighter); color: var(--jhe-secondary-darker); }
-
-/* Tema padrão genérico (Fallback) */
-.type-default { border-color: var(--jhe-primary-lighter); background-color: #FFF; }
-.type-default .icon-container { background-color: var(--jhe-primary-lighter); color: var(--jhe-text-main); }
-.type-default .collapse-btn { border-color: var(--jhe-primary-lighter); color: var(--jhe-primary-darker); }
-
-/* =========================================
-   Estilo Global das Conexões (Edges) do React Flow
-========================================= */
-.react-flow__edge-path {
-  stroke: var(--jhe-primary) !important;
-  stroke-width: 2px !important;
-  stroke-dasharray: none !important; /* Remove tracejado caso exista */
+/* --- NÍVEL 3: Subordinados / Equipes / Apoios / Contratos (Ex: Apoio a Dados, Desenvolvedor) --- */
+.level-subordinado,
+.level-apoio,
+.type-subordinado,
+.type-apoio,
+.type-equipe,
+.type-contrato,
+.type-default { 
+  background-color: #D9F2FA !important; /* Ciano Suave/Pastel */
+  border-color: #61CBE8 !important;
+  color: #020931 !important;
+}
+.level-subordinado .node-title,
+.level-apoio .node-title,
+.type-subordinado .node-title,
+.type-apoio .node-title,
+.type-equipe .node-title,
+.type-contrato .node-title,
+.type-default .node-title { 
+  color: #020931 !important; 
+  font-weight: 600 !important;
+}
+.level-subordinado .node-responsavel,
+.level-apoio .node-responsavel,
+.type-subordinado .node-responsavel,
+.type-apoio .node-responsavel,
+.type-equipe .node-responsavel,
+.type-contrato .node-responsavel,
+.type-default .node-responsavel { 
+  color: #334155 !important; 
+}
+.level-subordinado .icon-container,
+.level-apoio .icon-container,
+.type-subordinado .icon-container,
+.type-apoio .icon-container,
+.type-equipe .icon-container,
+.type-contrato .icon-container,
+.type-default .icon-container { 
+  background-color: #61CBE8; 
+  color: #020931; 
+}
+.level-subordinado .node-badge,
+.level-apoio .node-badge,
+.type-subordinado .node-badge,
+.type-apoio .node-badge,
+.type-equipe .node-badge,
+.type-contrato .node-badge,
+.type-default .node-badge {
+  color: #194775 !important;
+}
+.level-subordinado .collapse-btn,
+.level-apoio .collapse-btn,
+.type-subordinado .collapse-btn,
+.type-apoio .collapse-btn,
+.type-equipe .collapse-btn,
+.type-contrato .collapse-btn,
+.type-default .collapse-btn { 
+  border-color: #61CBE8; 
+  color: #020931; 
+  background-color: #FFFFFF; 
+}
+.level-subordinado .collapse-btn:hover,
+.level-apoio .collapse-btn:hover,
+.type-subordinado .collapse-btn:hover,
+.type-apoio .collapse-btn:hover,
+.type-equipe .collapse-btn:hover,
+.type-contrato .collapse-btn:hover,
+.type-default .collapse-btn:hover { 
+  background-color: #61CBE8; 
+  color: #020931; 
 }
 
 /* =========================================
    Classes de Fundo de Tema (Usados no Modal Lateral)
 ========================================= */
-.bg-theme-ceo { background-color: var(--jhe-primary-darker); }
-.bg-theme-diretoria, .bg-theme-staff { background-color: var(--jhe-primary); }
-.bg-theme-gerencia, .bg-theme-unidade { background-color: var(--jhe-secondary); }
-.bg-theme-contrato, .bg-theme-equipe, .bg-theme-apoio { background-color: var(--jhe-secondary-lighter); }
-.bg-theme-default { background-color: var(--jhe-primary-lighter); }
+.bg-theme-ceo { background-color: #020931; color: #FFFFFF; }
+.bg-theme-diretoria { background-color: #194775; color: #FFFFFF; }
+.bg-theme-gerencia, .bg-theme-coordenacao, .bg-theme-unidade, .bg-theme-staff { background-color: #61CBE8; color: #020931; }
+.bg-theme-contrato, .bg-theme-equipe, .bg-theme-apoio, .bg-theme-default { background-color: #D9F2FA; color: #020931; }
 
 /* =========================================
    Estilos de Arestas (Edges do React Flow)
+   Padronização: --jhe-primary (#194775) no Light e --jhe-primary-lighter (#61CBE8) no Dark
 ========================================= */
-.edge-theme-ceo path { stroke: var(--jhe-primary-darker) !important; stroke-width: 2px !important; }
-.edge-theme-diretoria path, .edge-theme-staff path { stroke: var(--jhe-primary) !important; stroke-width: 2px !important; }
-.edge-theme-gerencia path, .edge-theme-unidade path { stroke: var(--jhe-secondary) !important; stroke-width: 2px !important; }
-.edge-theme-contrato path, .edge-theme-equipe path, .edge-theme-apoio path { stroke: var(--jhe-secondary-lighter) !important; stroke-width: 2px !important; }
-.edge-theme-default path { stroke: var(--jhe-primary-lighter) !important; stroke-width: 2px !important; }
+.react-flow__edge-path {
+  stroke: var(--jhe-primary) !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: none !important;
+  stroke-linecap: square !important;
+  stroke-linejoin: miter !important;
+}
+
+.edge-theme-ceo path,
+.edge-theme-diretoria path,
+.edge-theme-staff path,
+.edge-theme-gerencia path,
+.edge-theme-unidade path,
+.edge-theme-contrato path,
+.edge-theme-equipe path,
+.edge-theme-apoio path,
+.edge-theme-default path {
+  stroke: var(--jhe-primary) !important;
+  stroke-width: 2px !important;
+}
+
+.edge-theme-admin path,
+.edge-theme-admin .react-flow__edge-path {
+  stroke: var(--jhe-primary-lighter) !important;
+  stroke-width: 1.5px !important;
+}
 
 /* =========================================
    Componentes Internos do Nó
@@ -365,3 +555,879 @@
 .modal-close-btn:hover {
   background-color: rgba(255,255,255,0.4);
 }
+
+/* =========================================================================
+   TEMA ESCURO (DARK MODE INSTITUCIONAL DA JHE ENGENHARIA)
+   Zero CSS Inline - Estilização completa ativada pela classe '.dark' na <html>
+   ========================================================================= */
+
+.dark {
+  --jhe-canvas-bg: #070D1E;       /* Azul marinho profundo corporativo */
+  --jhe-node-bg: #0D1B38;         /* Superfície dos cards em modo escuro */
+  --jhe-text-main: #F1F5F9;       /* Texto principal claro com alto contraste */
+  --jhe-text-muted: #94A3B8;      /* Texto secundário e cargos */
+  --jhe-border-subtle: #1E293B;   /* Bordas sutis */
+  --jhe-primary-darker: #0D1B38;
+}
+
+/* Fundo Canvas e Textos Globais no Dark Mode */
+.dark .bg-canvas {
+  background-color: var(--jhe-canvas-bg) !important;
+}
+.dark .text-main {
+  color: var(--jhe-text-main);
+}
+.dark .text-muted {
+  color: var(--jhe-text-muted);
+}
+
+/* Estilo Base dos Cards (Nodes) no Dark Mode */
+.dark .jhe-node-card {
+  background-color: var(--jhe-node-bg);
+  color: var(--jhe-text-main);
+  border-color: #1E293B;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* Glow suave futurista ao passar o mouse */
+.dark .jhe-node-card:hover {
+  border-color: #61CBE8;
+  box-shadow: 0 0 20px rgba(97, 203, 232, 0.25), 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+/* --- NÍVEL 0: Co-CEOs no Dark Mode --- */
+.dark .level-ceo,
+.dark .type-ceo {
+  background-color: #020931 !important;
+  border-color: #61CBE8 !important;
+  color: #FFFFFF !important;
+}
+.dark .level-ceo .ceo-title, 
+.dark .level-ceo .ceo-name,
+.dark .level-ceo .node-title,
+.dark .type-ceo .ceo-title, 
+.dark .type-ceo .ceo-name,
+.dark .type-ceo .node-title {
+  color: #FFFFFF !important;
+}
+.dark .level-ceo .ceo-avatar-wrapper,
+.dark .type-ceo .ceo-avatar-wrapper {
+  border-color: #61CBE8 !important;
+}
+
+/* --- NÍVEL 1: Diretorias no Dark Mode (Fundo #12284C, borda #61CBE8, texto branco) --- */
+.dark .level-diretoria,
+.dark .type-diretoria {
+  background-color: #12284C !important;
+  border-color: #61CBE8 !important;
+  color: #FFFFFF !important;
+}
+.dark .level-diretoria .node-title, 
+.dark .level-diretoria .node-responsavel,
+.dark .type-diretoria .node-title, 
+.dark .type-diretoria .node-responsavel {
+  color: #FFFFFF !important;
+}
+.dark .level-diretoria .icon-container,
+.dark .type-diretoria .icon-container {
+  background-color: rgba(97, 203, 232, 0.15) !important;
+  color: #61CBE8 !important;
+}
+
+/* --- NÍVEL 2: Coordenação / Gerência no Dark Mode (Fundo #1E3A68, borda #61CBE8, texto branco) --- */
+.dark .level-coordenacao,
+.dark .level-gerencia,
+.dark .type-gerencia,
+.dark .type-coordenacao,
+.dark .type-unidade,
+.dark .type-staff {
+  background-color: #1E3A68 !important;
+  border-color: #61CBE8 !important;
+  color: #FFFFFF !important;
+}
+.dark .level-coordenacao .node-title,
+.dark .level-gerencia .node-title,
+.dark .type-gerencia .node-title,
+.dark .type-coordenacao .node-title,
+.dark .type-unidade .node-title,
+.dark .type-staff .node-title {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+.dark .level-coordenacao .node-responsavel,
+.dark .level-gerencia .node-responsavel,
+.dark .type-gerencia .node-responsavel,
+.dark .type-coordenacao .node-responsavel,
+.dark .type-unidade .node-responsavel,
+.dark .type-staff .node-responsavel {
+  color: #CBD5E1 !important;
+}
+.dark .level-coordenacao .icon-container,
+.dark .level-gerencia .icon-container,
+.dark .type-gerencia .icon-container,
+.dark .type-coordenacao .icon-container,
+.dark .type-unidade .icon-container,
+.dark .type-staff .icon-container {
+  background-color: #12284C !important;
+  color: #61CBE8 !important;
+}
+.dark .level-coordenacao .collapse-btn,
+.dark .level-gerencia .collapse-btn,
+.dark .type-gerencia .collapse-btn,
+.dark .type-coordenacao .collapse-btn,
+.dark .type-unidade .collapse-btn,
+.dark .type-staff .collapse-btn {
+  border-color: #61CBE8 !important;
+  color: #61CBE8 !important;
+  background-color: #12284C !important;
+}
+
+/* --- NÍVEL 3: Subordinado / Apoio no Dark Mode (Fundo #0E1E3D, borda #254472, texto #F1F5F9) --- */
+.dark .level-subordinado,
+.dark .level-apoio,
+.dark .type-subordinado,
+.dark .type-apoio,
+.dark .type-equipe,
+.dark .type-contrato,
+.dark .type-default {
+  background-color: #0E1E3D !important;
+  border-color: #254472 !important;
+  color: #F1F5F9 !important;
+}
+.dark .level-subordinado .node-title,
+.dark .level-apoio .node-title,
+.dark .type-subordinado .node-title,
+.dark .type-apoio .node-title,
+.dark .type-equipe .node-title,
+.dark .type-contrato .node-title,
+.dark .type-default .node-title {
+  color: #F1F5F9 !important;
+  font-weight: 500 !important;
+}
+.dark .level-subordinado .node-responsavel,
+.dark .level-apoio .node-responsavel,
+.dark .type-subordinado .node-responsavel,
+.dark .type-apoio .node-responsavel,
+.dark .type-equipe .node-responsavel,
+.dark .type-contrato .node-responsavel,
+.dark .type-default .node-responsavel {
+  color: #94A3B8 !important;
+}
+.dark .level-subordinado .icon-container,
+.dark .level-apoio .icon-container,
+.dark .type-subordinado .icon-container,
+.dark .type-apoio .icon-container,
+.dark .type-equipe .icon-container,
+.dark .type-contrato .icon-container,
+.dark .type-default .icon-container {
+  background-color: #1E3A68 !important;
+  color: #61CBE8 !important;
+}
+.dark .level-subordinado .collapse-btn,
+.dark .level-apoio .collapse-btn,
+.dark .type-subordinado .collapse-btn,
+.dark .type-apoio .collapse-btn,
+.dark .type-equipe .collapse-btn,
+.dark .type-contrato .collapse-btn,
+.dark .type-default .collapse-btn {
+  border-color: #254472 !important;
+  color: #61CBE8 !important;
+  background-color: #1E3A68 !important;
+}
+
+/* =========================================
+   CORREÇÃO DE CONTRASTE NO SUBTÍTULO (DARK MODE)
+========================================= */
+.dark .node-badge,
+.dark .jhe-node-badge,
+.dark .jhe-node-subtitle,
+.dark .jhe-node-role {
+  color: #94A3B8 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.8px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+}
+
+/* Destaque por Nível no Dark Mode */
+.dark .level-ceo .node-badge,
+.dark .type-ceo .node-badge {
+  color: #61CBE8 !important;
+}
+
+.dark .level-diretoria .node-badge,
+.dark .type-diretoria .node-badge {
+  color: #61CBE8 !important;
+}
+
+.dark .level-coordenacao .node-badge,
+.dark .level-gerencia .node-badge,
+.dark .type-gerencia .node-badge,
+.dark .type-coordenacao .node-badge,
+.dark .type-unidade .node-badge,
+.dark .type-staff .node-badge {
+  color: #A5F3FC !important; /* Ciano brilhante para alto contraste nas gerências */
+}
+
+.dark .level-subordinado .node-badge,
+.dark .level-apoio .node-badge,
+.dark .type-subordinado .node-badge,
+.dark .type-apoio .node-badge,
+.dark .type-equipe .node-badge,
+.dark .type-contrato .node-badge,
+.dark .type-default .node-badge {
+  color: #CBD5E1 !important; /* Prata/Cinza claro em apoios e subordinados */
+}
+
+/* Linhas de Conexão no Dark Mode (Ciano Institucional #61CBE8 Futurista Elegante) */
+.dark .react-flow__edge-path,
+.dark .edge-theme-ceo path,
+.dark .edge-theme-diretoria path,
+.dark .edge-theme-staff path,
+.dark .edge-theme-gerencia path,
+.dark .edge-theme-unidade path,
+.dark .edge-theme-contrato path,
+.dark .edge-theme-equipe path,
+.dark .edge-theme-apoio path,
+.dark .edge-theme-admin path,
+.dark .edge-theme-default path {
+  stroke: #61CBE8 !important;
+  stroke-width: 1.5px !important;
+}
+
+/* Toolbar Flutuante no Dark Mode */
+.dark .toolbar-container {
+  background-color: rgba(13, 27, 56, 0.95);
+  border-color: #1E293B;
+}
+.dark .toolbar-btn {
+  color: #94A3B8;
+}
+.dark .toolbar-btn:hover {
+  color: #61CBE8;
+  background-color: #1E293B;
+}
+.dark .theme-toggle-btn {
+  color: #F59E0B; /* Ícone de Sol dourado */
+}
+.dark .theme-toggle-btn:hover {
+  color: #FBBF24;
+  background-color: #1E293B;
+}
+.dark .help-btn {
+  background-color: #12284C;
+  color: #61CBE8;
+}
+
+/* Modal Lateral no Dark Mode */
+.dark .modal-overlay {
+  background-color: #0D1B38;
+  border-left: 1px solid #1E293B;
+  color: #F1F5F9;
+}
+
+/* =========================================================================
+   MÓDULO DE AUTENTICAÇÃO E PERMISSÕES HIERÁRQUICAS (RBAC)
+   Zero CSS Inline - Suporte completo aos temas Light e Dark Mode
+   ========================================================================= */
+
+/* Botões da Toolbar */
+.login-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  background-color: var(--jhe-primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.login-trigger-btn:hover {
+  background-color: var(--jhe-primary-lighter);
+  color: var(--jhe-primary-darker);
+}
+
+/* User Profile Widget na Toolbar */
+.user-profile-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--jhe-border-subtle);
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.user-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--jhe-text-main);
+}
+
+.user-role-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--jhe-primary-lighter);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background-color: #EF4444;
+  color: #FFFFFF;
+}
+
+/* Dark Mode para Toolbar Auth Widget */
+.dark .login-trigger-btn {
+  background-color: #61CBE8;
+  color: #020931;
+}
+
+.dark .login-trigger-btn:hover {
+  background-color: #FFFFFF;
+  color: #194775;
+}
+
+.dark .user-profile-widget {
+  background-color: #12284C;
+  border-color: #1E293B;
+}
+
+.dark .user-name {
+  color: #F1F5F9;
+}
+
+.dark .user-role-badge {
+  color: #61CBE8;
+}
+
+/* Modal de Login (Modal Overlay & Card) */
+.login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(2, 9, 49, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.login-modal-card {
+  background-color: var(--jhe-node-bg);
+  color: var(--jhe-text-main);
+  border: 1px solid var(--jhe-border-subtle);
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 440px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dark .login-modal-card {
+  background-color: #0D1B38;
+  border-color: #1E293B;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+}
+
+.login-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.login-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.login-header-icon {
+  color: var(--jhe-primary-lighter);
+}
+
+.login-header-title h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.login-modal-subtitle {
+  font-size: 0.875rem;
+  color: var(--jhe-text-muted);
+  margin-top: -0.5rem;
+}
+
+.login-error-banner {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  color: #991B1B;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.dark .login-error-banner {
+  background-color: rgba(153, 27, 27, 0.3);
+  border-color: #991B1B;
+  color: #FCA5A5;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.login-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--jhe-text-muted);
+}
+
+.login-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--jhe-border-subtle);
+  background-color: var(--jhe-canvas-bg);
+  color: var(--jhe-text-main);
+  font-size: 0.9375rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.login-input:focus {
+  border-color: var(--jhe-primary-lighter);
+}
+
+.dark .login-input {
+  background-color: #070D1E;
+  border-color: #1E293B;
+  color: #F1F5F9;
+}
+
+.dark .login-input:focus {
+  border-color: #61CBE8;
+}
+
+/* Box de credenciais de demonstração */
+.demo-credentials-box {
+  background-color: var(--jhe-canvas-bg);
+  border: 1px dashed var(--jhe-primary-lighter);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dark .demo-credentials-box {
+  background-color: #070D1E;
+  border-color: #254472;
+}
+
+.demo-credentials-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--jhe-text-muted);
+}
+
+.demo-buttons-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.demo-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.admin-demo-btn {
+  background-color: #194775;
+  color: #FFFFFF;
+}
+
+.director-demo-btn {
+  background-color: #7C3AED;
+  color: #FFFFFF;
+}
+
+.demo-btn:hover {
+  filter: brightness(1.15);
+}
+
+.login-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.login-cancel-btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  background-color: transparent;
+  color: var(--jhe-text-muted);
+  border: 1px solid var(--jhe-border-subtle);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-submit-btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  background-color: var(--jhe-primary);
+  color: #FFFFFF;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.login-submit-btn:hover {
+  background-color: var(--jhe-primary-lighter);
+  color: var(--jhe-primary-darker);
+}
+
+.dark .login-submit-btn {
+  background-color: #61CBE8;
+  color: #020931;
+}
+
+.dark .login-submit-btn:hover {
+  background-color: #FFFFFF;
+  color: #194775;
+}
+
+/* Painel Lateral / Modal de Detalhes - Módulo RBAC */
+.modal-node-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  padding-right: 2rem;
+  line-height: 1.2;
+}
+
+.modal-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.node-badge-chip {
+  padding: 0.25rem 0.625rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.permission-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.permission-allowed {
+  background-color: #DCFCE7;
+  color: #166534;
+}
+
+.permission-readonly {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.dark .permission-allowed {
+  background-color: rgba(22, 101, 52, 0.4);
+  color: #86EFAC;
+}
+
+.dark .permission-readonly {
+  background-color: rgba(146, 64, 14, 0.4);
+  color: #FDE68A;
+}
+
+.modal-body-container {
+  padding: 1.25rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.modal-details-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.detail-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--jhe-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.detail-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--jhe-text-main);
+}
+
+.detail-link {
+  color: var(--jhe-primary-lighter);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.detail-description-box {
+  background-color: var(--jhe-canvas-bg);
+  border: 1px solid var(--jhe-border-subtle);
+  border-radius: 0.5rem;
+  padding: 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--jhe-text-main);
+}
+
+.dark .detail-description-box {
+  background-color: #070D1E;
+  border-color: #1E293B;
+}
+
+/* Box de Ações Hierárquicas */
+.modal-actions-box {
+  background-color: var(--jhe-canvas-bg);
+  border: 1px solid var(--jhe-primary-lighter);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dark .modal-actions-box {
+  background-color: #070D1E;
+  border-color: #254472;
+}
+
+.actions-box-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--jhe-primary-lighter);
+  letter-spacing: 0.5px;
+}
+
+.actions-buttons-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-edit {
+  background-color: #194775;
+  color: #FFFFFF;
+}
+
+.action-add {
+  background-color: #16A34A;
+  color: #FFFFFF;
+}
+
+.action-delete {
+  background-color: #DC2626;
+  color: #FFFFFF;
+}
+
+.action-btn:hover {
+  filter: brightness(1.15);
+}
+
+/* Formulários do Modal */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-form-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--jhe-text-main);
+  border-bottom: 2px solid var(--jhe-primary-lighter);
+  padding-bottom: 0.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--jhe-text-muted);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--jhe-border-subtle);
+  background-color: var(--jhe-canvas-bg);
+  color: var(--jhe-text-main);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.dark .form-input,
+.dark .form-select,
+.dark .form-textarea {
+  background-color: #070D1E;
+  border-color: #1E293B;
+  color: #F1F5F9;
+}
+
+.modal-form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background-color: var(--jhe-primary);
+  color: #FFFFFF;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background-color: transparent;
+  color: var(--jhe-text-muted);
+  border: 1px solid var(--jhe-border-subtle);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-footer-container {
+  padding: 1rem;
+  border-top: 1px solid var(--jhe-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-close-modal {
+  padding: 0.5rem 1.25rem;
+  background-color: var(--jhe-border-subtle);
+  color: var(--jhe-text-main);
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.dark .btn-close-modal {
+  background-color: #1E293B;
+  color: #F1F5F9;
+}
+

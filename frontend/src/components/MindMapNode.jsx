@@ -24,6 +24,28 @@ const IconMap = {
 };
 
 /**
+ * Mapeia o tipo do nó para as classes semânticas de nível hierárquico (Design Tokens JHE).
+ */
+const getLevelClasses = (tipo) => {
+    switch (tipo) {
+        case 'ceo':
+            return 'level-ceo type-ceo';
+        case 'diretoria':
+            return 'level-diretoria type-diretoria';
+        case 'gerencia':
+        case 'coordenacao':
+        case 'unidade':
+        case 'staff':
+            return `level-coordenacao level-gerencia type-${tipo || 'gerencia'}`;
+        case 'apoio':
+        case 'equipe':
+        case 'contrato':
+        default:
+            return `level-subordinado level-apoio type-${tipo || 'apoio'}`;
+    }
+};
+
+/**
  * Renderiza um nó do organograma com título, tipo e botão de expansão de filhos.
  */
 function MindMapNode({ data }) {
@@ -32,8 +54,8 @@ function MindMapNode({ data }) {
     const isCollapsed = data.isCollapsed;
     const hasChildren = data.hasChildren;
 
-    // Define a classe de tema baseada no tipo para aplicar as cores corporativas sem CSS inline
-    const themeClass = data.tipo ? `type-${data.tipo}` : 'type-default';
+    // Define a classe semântica de nível hierárquico e tema sem CSS inline
+    const themeClass = getLevelClasses(data.tipo);
     const collapseClass = isCollapsed ? 'node-collapsed' : 'node-expanded';
 
     // Layout especial para o card dos Co-CEOs
@@ -93,9 +115,11 @@ function MindMapNode({ data }) {
             {/* Conector Superior (Entrada única para conexões normais) */}
             <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-transparent !border-none" />
             
-            {/* Conectores Laterais Exclusivos para a Espinha Dorsal (Recebem conexões horizontais) */}
-            <Handle type="target" position={Position.Left} id="left-target" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%' }} />
-            <Handle type="target" position={Position.Right} id="right-target" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%' }} />
+            {/* Conectores Laterais Exclusivos para a Espinha Dorsal, Barramento e Contratos */}
+            <Handle type="target" position={Position.Left} id="left-target" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
+            <Handle type="target" position={Position.Right} id="right-target" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
+            <Handle type="source" position={Position.Left} id="left" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
+            <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 !bg-transparent !border-none" style={{ top: '50%', transform: 'translateY(-50%)' }} />
             
             {/* Ícone e Título */}
             <div className="icon-container">
@@ -131,7 +155,7 @@ function MindMapNode({ data }) {
             )}
 
             {/* Conector Inferior (Saída única) */}
-            <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-transparent !border-none" />
+            <Handle type="source" position={Position.Bottom} id="bottom" className="!w-2 !h-2 !bg-transparent !border-none" />
         </div>
     );
 }

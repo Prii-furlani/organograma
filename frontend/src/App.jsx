@@ -1,20 +1,19 @@
 /**
- * Cabeçalho Arquitetural: Componente Raiz de Roteamento.
- * Gerencia a navegação entre a visualização pública (Mapa) e o painel Admin.
+ * Cabeçalho Arquitetural: Componente Raiz da Aplicação Frontend.
+ * Envolve a aplicação no AuthProvider para gerenciar o estado global de autenticação e RBAC.
  */
 
 import React from 'react';
 import OrganogramaView from './pages/OrganogramaView';
-// Importação comentada para futuro sistema de rotas (ex: react-router-dom)
-// import AdminCrudView from './pages/AdminCrudView';
+import { AuthProvider } from './context/AuthContext';
 
 function App() {
-    // Por enquanto, renderiza diretamente a view principal.
-    // Numa aplicação completa, aqui estariam os <Routes> do react-router.
     return (
-        <main className="w-screen h-screen">
-            <OrganogramaView />
-        </main>
+        <AuthProvider>
+            <main className="w-screen h-screen">
+                <OrganogramaView />
+            </main>
+        </AuthProvider>
     );
 }
 

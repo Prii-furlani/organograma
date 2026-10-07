@@ -1,10 +1,9 @@
 /**
- * Cabeçalho Arquitetural: Tela Principal do Sistema (Visualização).
- * Componente contêiner que une o React Flow, Toolbar, Tooltips e Modais.
- * Busca os dados via API e repassa aos hooks de gerenciamento visual.
+ * Cabeçalho Arquitetural: Tela Principal do Sistema (Visualização e Gerenciamento do Organograma).
+ * Integra React Flow, Toolbar, Modal de Login, Modal de Detalhes e RBAC.
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ReactFlow, Background, Controls, useReactFlow, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -12,7 +11,9 @@ import MindMapNode from '../components/MindMapNode';
 import Toolbar from '../components/Toolbar';
 import HelpTooltip from '../components/HelpTooltip';
 import NodeDetailsModal from '../components/NodeDetailsModal';
+import LoginModal from '../components/LoginModal';
 import { useOrganograma } from '../hooks/useOrganograma';
+import { useDarkMode } from '../hooks/useDarkMode';
 import { fetchOrganogramaTree } from '../api/organogramaApi';
 import { Loader2 } from 'lucide-react';
 import { Handle, Position } from '@xyflow/react';
@@ -40,27 +41,28 @@ function OrganogramaContent() {
     const [error, setError] = useState(null);
     
     const [selectedNode, setSelectedNode] = useState(null);
-    const [showHelp, setShowHelp] = useState(true); // Exibe ajuda inicialmente
+    const [showHelp, setShowHelp] = useState(true);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     
     const { fitView } = useReactFlow();
+    const { isDark, toggleDarkMode } = useDarkMode();
+
+    const loadData = useCallback(async () => {
+        try {
+            const data = await fetchOrganogramaTree();
+            setTreeData(data);
+        } catch (err) {
+            console.error("Erro ao carregar mapa:", err);
+            setError("Não foi possível carregar o organograma. Verifique o servidor.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     // Busca os dados da API ao montar o componente
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                const data = await fetchOrganogramaTree();
-                setTreeData(data);
-                
-                // O layout e centralização agora são controlados no hook useOrganograma (Dagre)
-            } catch (err) {
-                console.error("Erro ao carregar mapa:", err);
-                setError("Não foi possível carregar o organograma. Verifique o servidor.");
-            } finally {
-                setIsLoading(false);
-            }
-        };
         loadData();
-    }, [fitView]);
+    }, [loadData]);
 
     // Lógica para clique no nó e abertura do modal
     const handleNodeClick = useCallback((nodeData) => {
@@ -73,7 +75,7 @@ function OrganogramaContent() {
     if (isLoading) {
         return (
             <div className="w-screen h-screen flex flex-col items-center justify-center bg-canvas text-main">
-                <Loader2 size={48} className="animate-spin mb-4" />
+                <Loader2 size={48} className="animate-spin mb-4 text-cyan-500" />
                 <h2 className="text-xl font-semibold">Montando Organograma...</h2>
             </div>
         );
@@ -92,11 +94,21 @@ function OrganogramaContent() {
 
     return (
         <div className="w-screen h-screen bg-canvas relative overflow-hidden">
-            <Toolbar onToggleHelp={() => setShowHelp(!showHelp)} />
+            <Toolbar 
+                onToggleHelp={() => setShowHelp(!showHelp)} 
+                isDark={isDark}
+                onToggleDarkMode={toggleDarkMode}
+                onOpenLoginModal={() => setIsLoginModalOpen(true)}
+            />
             
             <HelpTooltip 
                 isVisible={showHelp} 
                 onClose={() => setShowHelp(false)} 
+            />
+
+            <LoginModal
+                isOpen={isLoginModalOpen}
+                onClose={() => setIsLoginModalOpen(false)}
             />
 
             <ReactFlow
@@ -112,22 +124,20 @@ function OrganogramaContent() {
                 maxZoom={2}
                 className="bg-canvas"
             >
-                {/* Background suave pontilhado */}
-                <Background color="#cbd5e1" gap={20} size={2} />
-                {/* Controles de navegação padrão (escondidos via css se quiser usar só a toolbar customizada) */}
+                <Background color={isDark ? "#1e293b" : "#cbd5e1"} gap={20} size={2} />
                 <Controls className="hidden md:flex" />
             </ReactFlow>
 
-            {/* Modal Lateral de Detalhes */}
+            {/* Modal Lateral de Detalhes e Gerenciamento */}
             <NodeDetailsModal 
                 nodeData={selectedNode} 
                 onClose={() => setSelectedNode(null)} 
+                onRefreshTree={loadData}
             />
         </div>
     );
 }
 
-// Envolve o componente com o Provider obrigatório do React Flow
 export default function OrganogramaView() {
     return (
         <ReactFlowProvider>

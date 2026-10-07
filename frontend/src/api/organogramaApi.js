@@ -1,14 +1,24 @@
 /**
- * Cabeçalho Arquitetural: Camada de serviços para comunicação com a API.
- * Isola a lógica de chamadas HTTP (Axios) do restante da aplicação, 
- * facilitando a manutenção e futuras trocas de bibliotecas de requisição.
+ * Cabeçalho Arquitetural: Camada de serviços para comunicação com a API Backend.
+ * Utiliza o Axios com interceptor para injetar o token JWT e gerenciar o CRUD de nós do organograma.
  */
 
 import axios from 'axios';
 
-// Instância base do axios configurada para usar o proxy do Vite
+// Instância base do axios configurada para usar a API
 const api = axios.create({
     baseURL: '/api',
+});
+
+// Interceptor para injetar o token JWT de autorização automaticamente
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('organograma_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
 });
 
 /**

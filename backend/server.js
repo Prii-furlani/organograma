@@ -1,6 +1,6 @@
 /**
  * Cabeçalho Arquitetural: Arquivo principal de inicialização do servidor Backend.
- * Configura o Express, middlewares como CORS e JSON, e roteia a API.
+ * Configura o Express, middlewares como CORS e JSON, e roteia as APIs de Organograma e Autenticação.
  */
 
 require('dotenv').config();
@@ -8,9 +8,10 @@ const express = require('express');
 const cors = require('cors');
 
 const organogramaRoutes = require('./routes/organogramaRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
 
 // Middlewares
 app.use(cors()); // Permite requisições do frontend (Cross-Origin Resource Sharing)
@@ -18,6 +19,7 @@ app.use(express.json()); // Habilita o parse de JSON no corpo das requisições
 
 // Rotas da API
 app.use('/api/organograma', organogramaRoutes);
+app.use('/api/auth', authRoutes);
 
 // Tratamento para rotas não encontradas
 app.use((req, res, next) => {
