@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { ArrowRight, CornerDownRight, X } from 'lucide-react';
-import { updateNode } from '../api/organogramaApi';
+import { moveNode } from '../api/organogramaApi';
 import { useToast } from '../context/ToastContext';
 
 function ConfirmMoveModal({ isOpen, onClose, draggedNode, targetNode, onRefreshTree }) {
@@ -29,22 +29,22 @@ function ConfirmMoveModal({ isOpen, onClose, draggedNode, targetNode, onRefreshT
 
     const handleConfirm = async () => {
         try {
-            await updateNode(draggedNode.id, { parent_id: targetNode.id });
+            await moveNode(draggedNode.id, targetNode.id);
+            onClose(); // FECHA IMEDIATAMENTE APÓS A REQUISIÇÃO
             onRefreshTree();
             addToast({
                 title: 'Área Movimentada',
                 message: `"${draggedNode.titulo}" agora responde a "${targetNode.titulo}".`,
                 type: 'success'
             });
-            onClose();
         } catch (error) {
             console.error('Erro ao mover nó:', error);
+            onClose(); // FECHA IMEDIATAMENTE EM CASO DE ERRO
             addToast({
                 title: 'Erro de Movimentação',
                 message: 'Não foi possível alterar a subordinação.',
                 type: 'error'
             });
-            onClose();
         }
     };
 

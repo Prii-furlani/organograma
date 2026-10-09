@@ -6,13 +6,15 @@
  * Zero CSS inline: estilização centralizada em organograma.css.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, UserPlus, Shield, ShieldCheck, UserCheck, Trash2, Edit, Save, Loader2, AlertTriangle, CheckSquare, Square, Search, Key, UserX, User } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { X, UserPlus, Shield, ShieldCheck, UserCheck, Trash2, Edit, Save, Loader2, AlertTriangle, CheckSquare, Square, Search, Key, UserX, User, ChevronDown, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import { fetchUsersList, createUserData, updateUserData, deleteUserData, resetUserPassword } from '../api/organogramaApi';
 import { confirmDeleteUser, confirmToggleUserStatus, confirmResetUserPassword, showToast } from '../utils/alerts';
+import { useAuth } from '../context/AuthContext';
 
 
 function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
+    const { user: currentUser, hasPermissionToEdit } = useAuth();
     const [users, setUsers] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,11 +22,17 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
 
     // Estado da barra de pesquisa de usuários
     const [userSearchQuery, setUserSearchQuery] = useState('');
+    const [filterArea, setFilterArea] = useState('');
+    const [isAreaFilterOpen, setIsAreaFilterOpen] = useState(false);
+    const [areaFilterSearchQuery, setAreaFilterSearchQuery] = useState('');
+    const areaFilterRef = useRef(null);
     // Estado da barra de pesquisa de nós na atribuição de cargos
     const [nodeSearchQuery, setNodeSearchQuery] = useState('');
 
     // Estado do modo formulário (null = lista, 'create' = criar, userObj = editar)
     const [formMode, setFormMode] = useState(null);
+    const [currentStep, setCurrentStep] = useState(1);
+    const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         nome_completo: '',
@@ -39,12 +47,32 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape' && isOpen) {
-                onClose();
+                handleClose();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
+    }, [isOpen]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (areaFilterRef.current && !areaFilterRef.current.contains(event.target)) {
+                setIsAreaFilterOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        return () => setErrorMsg(null);
+    }, []);
+
+    const handleClose = () => {
+        setErrorMsg(null);
+        setFormMode(null);
+        onClose();
+    };
 
     const loadUsers = async () => {
         setIsLoading(true);
@@ -66,6 +94,7 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
             setFormMode(null);
             setErrorMsg(null);
             setUserSearchQuery('');
+            setFilterArea('');
             setNodeSearchQuery('');
         }
     }, [isOpen]);
@@ -80,6 +109,7 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
             vinculos: []
         });
         setFormMode('create');
+        setCurrentStep(1);
         setErrorMsg(null);
     };
 
@@ -99,6 +129,7 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
             vinculos: initialVinculos
         });
         setFormMode(user);
+        setCurrentStep(1);
         setErrorMsg(null);
     };
 
@@ -233,27 +264,57 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
 
     // Filtra os usuários em tempo real na tabela
     const filteredUsers = useMemo(() => {
-        if (!userSearchQuery || !userSearchQuery.trim()) return users;
-        const q = userSearchQuery.trim().toLowerCase();
-        return users.filter(u => 
-            u.nome_completo.toLowerCase().includes(q) ||
-            u.email.toLowerCase().includes(q) ||
-            u.role_global.toLowerCase().includes(q) ||
-            (u.cargos && u.cargos.some(c => c.no_titulo.toLowerCase().includes(q)))
-        );
-    }, [users, userSearchQuery]);
+        let result = users;
+        
+        if (filterArea) {
+            result = result.filter(u => 
+                String(u.role_global).toLowerCase() === 'admin' || 
+                (u.cargos && u.cargos.some(c => String(c.no_id) === String(filterArea)))
+            );
+        }
 
-    // Filtra os nós no formulário de inclusão de vagas
+        if (userSearchQuery && userSearchQuery.trim()) {
+            const q = userSearchQuery.trim().toLowerCase();
+            result = result.filter(u => 
+                u.nome_completo.toLowerCase().includes(q) ||
+                u.email.toLowerCase().includes(q) ||
+                u.role_global.toLowerCase().includes(q) ||
+                (u.cargos && u.cargos.some(c => c.no_titulo.toLowerCase().includes(q)))
+            );
+        }
+        return result;
+    }, [users, userSearchQuery, filterArea]);
+
+    const sortedNodes = useMemo(() => {
+        if (!allNodesFlat) return [];
+        return [...allNodesFlat].sort((a, b) => a.titulo.localeCompare(b.titulo));
+    }, [allNodesFlat]);
+
+    const normalizeString = (str) => {
+        if (!str) return '';
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
+    const filteredDropdownNodes = useMemo(() => {
+        if (!areaFilterSearchQuery) return sortedNodes;
+        const query = normalizeString(areaFilterSearchQuery);
+        return sortedNodes.filter(node => normalizeString(node.titulo).includes(query));
+    }, [sortedNodes, areaFilterSearchQuery]);
+
+    // Filtra os nós no formulário de inclusão de vagas e aplica a restrição de sub-árvore
     const filteredNodes = useMemo(() => {
         if (!allNodesFlat) return [];
-        if (!nodeSearchQuery || !nodeSearchQuery.trim()) return allNodesFlat;
-        const q = nodeSearchQuery.trim().toLowerCase();
-        return allNodesFlat.filter(n => 
-            n.titulo.toLowerCase().includes(q) ||
-            (n.nivel_nome && n.nivel_nome.toLowerCase().includes(q)) ||
-            (n.tipo && n.tipo.toLowerCase().includes(q))
-        );
-    }, [allNodesFlat, nodeSearchQuery]);
+        let nodes = allNodesFlat.filter(n => hasPermissionToEdit(n.id));
+        if (nodeSearchQuery && nodeSearchQuery.trim()) {
+            const q = nodeSearchQuery.trim().toLowerCase();
+            nodes = nodes.filter(n => 
+                n.titulo.toLowerCase().includes(q) ||
+                (n.nivel_nome && n.nivel_nome.toLowerCase().includes(q)) ||
+                (n.tipo && n.tipo.toLowerCase().includes(q))
+            );
+        }
+        return nodes;
+    }, [allNodesFlat, nodeSearchQuery, hasPermissionToEdit]);
 
     // Helper para gerar as iniciais do avatar
     const getInitials = (name) => {
@@ -268,246 +329,379 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
     if (!isOpen) return null;
 
     return (
-        <div className="drawer-overlay drawer-open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <div className="drawer-content modal-user-mgmt">
+        <div className="jhe-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
+            <div className="jhe-modal-card">
                 
                 {/* Header do Modal */}
-                <div className="drawer-header bg-theme-ceo">
-                    <div className="drawer-title-group">
-                        <Shield size={24} />
-                        <div>
-                            <h2 className="drawer-main-title">
-                                Gestão e Cadastro de Usuários
+                {formMode !== null ? (
+                    <div className="jhe-modal-header-stepper">
+                        <div className="jhe-modal-header-stepper-title-col">
+                            <span className="jhe-modal-header-tag">GESTÃO DE ACESSO</span>
+                            <h2 className="jhe-modal-header-title">
+                                {formMode === 'create' ? 'Novo usuário' : 'Editar usuário'}
                             </h2>
-                            <span className="drawer-subtitle">
-                                Painel Administrativo de Controle de Acessos e Vínculos
-                            </span>
                         </div>
+                        <button onClick={() => { setFormMode(null); setCurrentStep(1); setErrorMsg(null); }} className="jhe-modal-close-btn" title="Fechar formulário">
+                            <X size={20} />
+                        </button>
                     </div>
-                    <button onClick={onClose} className="modal-close-btn" title="Fechar painel (Esc)">
-                        <X size={20} />
-                    </button>
-                </div>
+                ) : (
+                    <div className="jhe-modal-header">
+                        <div className="jhe-modal-title-group">
+                            <Shield size={24} className="jhe-modal-icon" />
+                            <div>
+                                <h2 className="jhe-modal-main-title">
+                                    Gestão e Cadastro de Usuários
+                                </h2>
+                                <span className="jhe-modal-subtitle">
+                                    Painel Administrativo de Controle de Acessos e Vínculos
+                                </span>
+                            </div>
+                        </div>
+                        <button onClick={handleClose} className="jhe-modal-close-btn" title="Fechar painel (Esc)">
+                            <X size={20} />
+                        </button>
+                    </div>
+                )}
 
                 {/* Banners de Notificação */}
                 {errorMsg && (
-                    <div className="drawer-error-banner">
-                        <AlertTriangle size={18} />
-                        <span>{errorMsg}</span>
+                    <div className="jhe-form-alert-container">
+                        <AlertTriangle size={18} className="jhe-form-alert-icon" />
+                        <span className="jhe-form-alert-text">{errorMsg}</span>
                     </div>
                 )}
 
                 <div className="user-mgmt-body">
-
                     {/* Visão de Formulário Organizado em 2 Seções (Criar ou Editar) */}
                     {formMode !== null ? (
                         <form onSubmit={handleSubmit} className="drawer-body-form">
-                            <h3 className="user-form-subtitle">
-                                {formMode === 'create' ? '1. Cadastrar Novo Colaborador' : `1. Editar Usuário #${formData.id}`}
-                            </h3>
-
-                            {/* SEÇÃO 1: DADOS PESSOAIS & ACESSO */}
-                            <div className="user-form-section">
-                                <h4 className="section-title-text">
-                                    <User size={15} /> Dados Pessoais & Credenciais
-                                </h4>
-
-                                <div className="drawer-form-row">
-                                    {/* Nome Completo */}
-                                    <div className="drawer-form-group flex-1">
-                                        <label className="drawer-label required">
-                                            Nome Completo
-                                        </label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formData.nome_completo}
-                                            onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
-                                            placeholder="Ex: Leandro Furlani, Dr. Hélio"
-                                            className="drawer-input"
-                                        />
-                                    </div>
-
-                                    {/* E-mail Institucional */}
-                                    <div className="drawer-form-group flex-1">
-                                        <label className="drawer-label required">
-                                            E-mail Institucional
-                                        </label>
-                                        <input
-                                            type="email"
-                                            required
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            placeholder="colaborador@jhe.com.br"
-                                            className="drawer-input"
-                                        />
-                                    </div>
+                            
+                            {/* Stepper Horizontal */}
+                            <div className="jhe-stepper-container">
+                                <div className={`jhe-step-item ${currentStep === 1 ? 'active' : 'completed'}`}>
+                                    <span className="jhe-step-circle">1</span>
+                                    <span className="jhe-step-label">Dados pessoais & acesso</span>
                                 </div>
+                                <div className="jhe-step-divider"></div>
+                                <div className={`jhe-step-item ${currentStep === 2 ? 'active' : ''}`}>
+                                    <span className="jhe-step-circle">2</span>
+                                    <span className="jhe-step-label">Vínculos no organograma</span>
+                                </div>
+                            </div>
 
-                                <div className="drawer-form-row">
-                                    {/* Senha Inicial (apenas no modo de Edição) / Info Badge no Cadastro */}
-                                    {formMode === 'create' ? (
-                                        <div className="drawer-form-group flex-1">
-                                            <label className="drawer-label">
-                                                Senha Inicial Padrão
-                                            </label>
-                                            <div className="demo-credentials-box">
-                                                <span className="demo-credentials-title">
-                                                    💡 Senha provisória configurada: <strong>Jhe@2026</strong>
-                                                </span>
-                                                <span className="text-xs text-muted">
-                                                    O colaborador será obrigado a cadastrar sua própria senha no primeiro login.
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="drawer-form-group flex-1">
-                                            <label className="drawer-label">
-                                                Nova Senha (opcional)
-                                            </label>
+                            {/* PASSO 1: DADOS PESSOAIS */}
+                            {currentStep === 1 && (
+                                <div className="user-form-section">
+                                    <div className="jhe-form-grid-2col">
+                                        <div className="jhe-form-group">
+                                            <label className="jhe-form-label required">Nome completo</label>
                                             <input
-                                                type="password"
-                                                value={formData.senha}
-                                                onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                                                placeholder="Deixe em branco para não alterar"
-                                                className="drawer-input"
+                                                type="text"
+                                                required
+                                                value={formData.nome_completo}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, nome_completo: e.target.value });
+                                                    if (errorMsg) setErrorMsg(null);
+                                                }}
+                                                placeholder="Ex: Leandro Neves"
+                                                className={`jhe-form-input ${errorMsg && !formData.nome_completo.trim() ? 'has-error' : ''}`}
                                             />
                                         </div>
-                                    )}
-
-                                    {/* Perfil Base (Role Global) */}
-                                    <div className="drawer-form-group flex-1">
-                                        <label className="drawer-label required">
-                                            Perfil Base (Role Global)
-                                        </label>
-                                        <select
-                                            value={formData.role_global}
-                                            onChange={(e) => setFormData({ ...formData, role_global: e.target.value })}
-                                            className="drawer-select"
-                                            required
-                                        >
-                                            <option value="admin">Administrador (Acesso Total)</option>
-                                            <option value="diretor">Diretor (Gestor de Diretoria)</option>
-                                            <option value="coordenador">Coordenador (Gestor de Área)</option>
-                                            <option value="colaborador">Colaborador (Visualização)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* SEÇÃO 2: VÍNCULOS NO ORGANOGRAMA (ESCOPO DE PERMISSÕES) */}
-                            <div className="user-form-section mt-4">
-                                <h3 className="user-form-subtitle">
-                                    2. Vínculos e Cargos no Organograma (Escopo de Gerência)
-                                </h3>
-
-                                <div className="drawer-form-group">
-                                    <span className="drawer-help-text">
-                                        Marque as áreas às quais este usuário possui permissão de gestão direta. É possível atribuir múltiplos cargos.
-                                    </span>
-
-                                    {/* Busca em tempo real de nós no checklist */}
-                                    <div className="drawer-search-wrapper my-2">
-                                        <Search size={14} className="drawer-search-icon" />
-                                        <input
-                                            type="text"
-                                            value={nodeSearchQuery}
-                                            onChange={(e) => setNodeSearchQuery(e.target.value)}
-                                            placeholder="Filtrar áreas por nome ou nível..."
-                                            className="drawer-search-input"
-                                        />
+                                        <div className="jhe-form-group">
+                                            <label className="jhe-form-label required">E-mail institucional</label>
+                                            <input
+                                                type="email"
+                                                required
+                                                value={formData.email}
+                                                onChange={(e) => {
+                                                    setFormData({ ...formData, email: e.target.value });
+                                                    if (errorMsg) setErrorMsg(null);
+                                                }}
+                                                placeholder="nome@jhe.com.br"
+                                                className={`jhe-form-input ${errorMsg && !formData.email.trim() ? 'has-error' : ''}`}
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="user-nodes-checklist">
-                                        {filteredNodes && filteredNodes.length > 0 ? (
-                                            filteredNodes.map(node => {
-                                                const vinculo = (formData.vinculos || []).find(v => v.no_id === node.id);
-                                                const isChecked = !!vinculo;
-
-                                                return (
-                                                    <div 
-                                                        key={node.id} 
-                                                        className={`user-node-item ${isChecked ? 'selected' : ''}`}
-                                                    >
-                                                        <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => handleToggleNodeSelection(node.id)}>
-                                                            {isChecked ? <CheckSquare size={16} className="text-primary-lighter flex-shrink-0" /> : <Square size={16} className="flex-shrink-0" />}
-                                                            <span className="user-node-title">{node.titulo}</span>
-                                                            <span className="user-node-badge">{node.nivel_nome || node.tipo}</span>
-                                                        </div>
-
-                                                        {/* Papel no cargo (Titular / Acumulação) */}
-                                                        {isChecked && (
-                                                            <select
-                                                                value={vinculo.papel_no_cargo || 'Titular'}
-                                                                onChange={(e) => handleUpdatePapelCargo(node.id, e.target.value)}
-                                                                className="user-papel-select"
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <option value="Titular">Titular</option>
-                                                                <option value="Acumulação">Acumulação</option>
-                                                                <option value="Interino">Interino</option>
-                                                            </select>
-                                                        )}
+                                    <div className="jhe-form-grid-2col">
+                                        <div className="jhe-form-group">
+                                            <label className="jhe-form-label required">Perfil global</label>
+                                            <div className="jhe-custom-select-wrapper">
+                                                <div 
+                                                    className="jhe-custom-select-button"
+                                                    onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                                                >
+                                                    <div className="jhe-custom-select-value">
+                                                        <div className={`jhe-custom-select-dot dot-${String(formData.role_global).toLowerCase()}`}></div>
+                                                        <span>{formData.role_global.charAt(0).toUpperCase() + formData.role_global.slice(1)}</span>
                                                     </div>
-                                                );
-                                            })
-                                        ) : (
-                                            <span className="text-muted text-sm py-2">Nenhuma área encontrada.</span>
-                                        )}
+                                                    <ChevronDown size={16} className="text-gray-400" />
+                                                </div>
+
+                                                {isRoleDropdownOpen && (
+                                                    <div className="jhe-custom-select-dropdown">
+                                                        {String(currentUser?.role_global).toUpperCase() === 'ADMIN' && (
+                                                            <div className="jhe-custom-select-option" onClick={() => { setFormData({ ...formData, role_global: 'admin' }); setIsRoleDropdownOpen(false); }}>
+                                                                <div className="jhe-custom-select-option-left">
+                                                                    <div className="jhe-custom-select-dot dot-admin"></div>
+                                                                    Administrador
+                                                                </div>
+                                                                {formData.role_global === 'admin' && <Check size={16} className="text-[#0A192F] dark:text-[#61CBE8]" />}
+                                                            </div>
+                                                        )}
+                                                        {['ADMIN', 'DIRETOR'].includes(String(currentUser?.role_global).toUpperCase()) && (
+                                                            <div className="jhe-custom-select-option" onClick={() => { setFormData({ ...formData, role_global: 'diretor' }); setIsRoleDropdownOpen(false); }}>
+                                                                <div className="jhe-custom-select-option-left">
+                                                                    <div className="jhe-custom-select-dot dot-diretor"></div>
+                                                                    Diretor
+                                                                </div>
+                                                                {formData.role_global === 'diretor' && <Check size={16} className="text-[#0A192F] dark:text-[#61CBE8]" />}
+                                                            </div>
+                                                        )}
+                                                        {['ADMIN', 'DIRETOR', 'COORDENADOR'].includes(String(currentUser?.role_global).toUpperCase()) && (
+                                                            <div className="jhe-custom-select-option" onClick={() => { setFormData({ ...formData, role_global: 'coordenador' }); setIsRoleDropdownOpen(false); }}>
+                                                                <div className="jhe-custom-select-option-left">
+                                                                    <div className="jhe-custom-select-dot dot-coordenador"></div>
+                                                                    Coordenador
+                                                                </div>
+                                                                {formData.role_global === 'coordenador' && <Check size={16} className="text-[#0A192F] dark:text-[#61CBE8]" />}
+                                                            </div>
+                                                        )}
+                                                        <div className="jhe-custom-select-option" onClick={() => { setFormData({ ...formData, role_global: 'colaborador' }); setIsRoleDropdownOpen(false); }}>
+                                                            <div className="jhe-custom-select-option-left">
+                                                                <div className="jhe-custom-select-dot dot-colaborador"></div>
+                                                                Colaborador
+                                                            </div>
+                                                            {formData.role_global === 'colaborador' && <Check size={16} className="text-[#0A192F] dark:text-[#61CBE8]" />}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="jhe-form-group">
+                                            {formMode === 'create' ? (
+                                                <div className="jhe-password-banner" style={{ margin: 0, padding: '10px 16px', height: '44px', display: 'flex', alignItems: 'center' }}>
+                                                    <ShieldCheck size={16} className="jhe-password-banner-icon" />
+                                                    <span className="jhe-password-banner-title" style={{ fontSize: '13px' }}>Senha padrão provisória: Jhe@2026</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <label className="jhe-form-label">Nova Senha (opcional)</label>
+                                                    <input
+                                                        type="password"
+                                                        value={formData.senha}
+                                                        onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+                                                        placeholder="Deixe em branco para manter"
+                                                        className="jhe-form-input"
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {formMode === 'create' && (
+                                        <div className="jhe-password-banner">
+                                            <ShieldCheck size={24} className="jhe-password-banner-icon" />
+                                            <div className="jhe-password-banner-text">
+                                                <span className="jhe-password-banner-title">Senha provisória padrão: Jhe@2026</span>
+                                                <span className="jhe-password-banner-desc">O colaborador será obrigado a definir sua própria senha no primeiro login.</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="jhe-stepper-footer">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setFormMode(null); setErrorMsg(null); }}
+                                            className="jhe-btn-secondary"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if(!formData.nome_completo || !formData.email) {
+                                                    setErrorMsg('Preencha os campos obrigatórios (*) para avançar.');
+                                                    return;
+                                                }
+                                                setErrorMsg(null);
+                                                setCurrentStep(2);
+                                            }}
+                                            className="jhe-btn-primary"
+                                        >
+                                            Continuar <ArrowRight size={16} />
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Ações do Formulário */}
-                            <div className="drawer-footer-actions">
-                                <button
-                                    type="button"
-                                    onClick={() => setFormMode(null)}
-                                    className="btn-drawer-cancel"
-                                >
-                                    Voltar à Lista
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="btn-drawer-save"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 size={16} className="animate-spin" />
-                                            Salvando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save size={16} />
-                                            {formMode === 'create' ? 'Cadastrar Usuário' : 'Salvar Alterações'}
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                            {/* PASSO 2: VÍNCULOS */}
+                            {currentStep === 2 && (
+                                <div className="user-form-section">
+                                    <div className="drawer-form-group">
+                                        <span className="drawer-help-text">
+                                            Marque as áreas às quais este usuário possui permissão de gestão direta.
+                                        </span>
+
+                                        <div className="drawer-search-wrapper my-2">
+                                            <Search size={14} className="drawer-search-icon" />
+                                            <input
+                                                type="text"
+                                                value={nodeSearchQuery}
+                                                onChange={(e) => setNodeSearchQuery(e.target.value)}
+                                                placeholder="Filtrar áreas por nome ou nível..."
+                                                className="drawer-search-input"
+                                            />
+                                        </div>
+
+                                        <div className="user-nodes-checklist" style={{ maxHeight: '300px' }}>
+                                            {filteredNodes && filteredNodes.length > 0 ? (
+                                                filteredNodes.map(node => {
+                                                    const vinculo = (formData.vinculos || []).find(v => v.no_id === node.id);
+                                                    const isChecked = !!vinculo;
+
+                                                    return (
+                                                        <div 
+                                                            key={node.id} 
+                                                            className={`user-node-item ${isChecked ? 'selected' : ''}`}
+                                                        >
+                                                            <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => handleToggleNodeSelection(node.id)}>
+                                                                {isChecked ? <CheckSquare size={16} className="text-[#102A4E] dark:text-[#61CBE8] flex-shrink-0" /> : <Square size={16} className="flex-shrink-0" />}
+                                                                <span className="user-node-title">{node.titulo}</span>
+                                                                <span className="user-node-badge">{node.nivel_nome || node.tipo}</span>
+                                                            </div>
+
+                                                            {isChecked && (
+                                                                <select
+                                                                    value={vinculo.papel_no_cargo || 'Titular'}
+                                                                    onChange={(e) => handleUpdatePapelCargo(node.id, e.target.value)}
+                                                                    className="user-papel-select"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <option value="Titular">Titular</option>
+                                                                    <option value="Acumulação">Acumulação</option>
+                                                                    <option value="Interino">Interino</option>
+                                                                </select>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <span className="text-muted text-sm py-2">Nenhuma área encontrada.</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="jhe-stepper-footer">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentStep(1)}
+                                            className="jhe-btn-secondary"
+                                        >
+                                            <ArrowLeft size={16} /> Voltar
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting}
+                                            className="jhe-btn-primary"
+                                        >
+                                            {isSubmitting ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" /> Salvando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save size={16} /> {formMode === 'create' ? 'Salvar Novo Usuário' : 'Salvar Alterações'}
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </form>
                     ) : (
                         /* Visão de Lista de Usuários */
                         <div className="user-list-container">
-                            <div className="user-list-toolbar">
-                                {/* Barra de Pesquisa em Tempo Real */}
-                                <div className="user-search-box">
-                                    <Search size={16} className="user-search-icon" />
-                                    <input
-                                        type="text"
-                                        value={userSearchQuery}
-                                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                                        placeholder="Pesquisar por nome, e-mail ou cargo..."
-                                        className="user-search-input"
-                                    />
+                            <div className="jhe-user-toolbar">
+                                {/* Barra de Pesquisa em Tempo Real e Filtro de Área */}
+                                <div className="flex items-center gap-2 flex-1">
+                                    <div className="jhe-user-search-box">
+                                        <Search size={16} className="jhe-user-search-icon" />
+                                        <input
+                                            type="text"
+                                            value={userSearchQuery}
+                                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                                            placeholder="Buscar por nome, cargo ou e-mail..."
+                                            className="jhe-user-search-input"
+                                        />
+                                    </div>
+                                    <div className="jhe-area-filter-wrapper" ref={areaFilterRef}>
+                                        <div 
+                                            className="jhe-area-filter-trigger"
+                                            onClick={() => setIsAreaFilterOpen(!isAreaFilterOpen)}
+                                        >
+                                            <div className="jhe-area-filter-content">
+                                                <span className="jhe-area-filter-label">ÁREA VINCULADA</span>
+                                                <span className="jhe-area-filter-value">
+                                                    {filterArea ? sortedNodes.find(n => String(n.id) === String(filterArea))?.titulo || 'Todas as áreas' : 'Todas as áreas'}
+                                                </span>
+                                            </div>
+                                            <ChevronDown size={16} className={`jhe-area-filter-icon ${isAreaFilterOpen ? 'open' : ''}`} />
+                                        </div>
+
+                                        {isAreaFilterOpen && (
+                                            <div className="jhe-area-filter-dropdown">
+                                                <div className="jhe-area-filter-search-box">
+                                                    <Search size={14} className="text-gray-400" />
+                                                    <input 
+                                                        type="text" 
+                                                        value={areaFilterSearchQuery}
+                                                        onChange={(e) => setAreaFilterSearchQuery(e.target.value)}
+                                                        placeholder="Buscar área ou diretoria..."
+                                                        className="jhe-area-filter-search-input"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div className="jhe-area-filter-list">
+                                                    <div 
+                                                        className={`jhe-area-filter-item ${!filterArea ? 'selected' : ''}`}
+                                                        onClick={() => {
+                                                            setFilterArea('');
+                                                            setIsAreaFilterOpen(false);
+                                                            setAreaFilterSearchQuery('');
+                                                        }}
+                                                    >
+                                                        <span>Todas as áreas (Exibir todos)</span>
+                                                        {!filterArea && <Check size={16} className="text-[#0A192F] dark:text-[#61CBE8]" />}
+                                                    </div>
+                                                    {filteredDropdownNodes.map(node => (
+                                                        <div 
+                                                            key={node.id}
+                                                            className={`jhe-area-filter-item ${String(filterArea) === String(node.id) ? 'selected' : ''}`}
+                                                            onClick={() => {
+                                                                setFilterArea(node.id);
+                                                                setIsAreaFilterOpen(false);
+                                                                setAreaFilterSearchQuery('');
+                                                            }}
+                                                        >
+                                                            <span>{node.titulo}</span>
+                                                            {String(filterArea) === String(node.id) && <Check size={16} className="text-[#0A192F] dark:text-[#61CBE8]" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <button
                                     onClick={handleOpenCreateForm}
-                                    className="btn-add-user"
+                                    className="jhe-btn-add-user"
                                 >
                                     <UserPlus size={16} />
-                                    + Novo Usuário
+                                    + Novo usuário
                                 </button>
                             </div>
 
@@ -518,82 +712,80 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
                                 </div>
                             ) : (
                                 <div className="user-table-wrapper">
-                                    <table className="user-table">
+                                    <table className="jhe-user-table">
                                         <thead>
                                             <tr>
-                                                <th>Colaborador</th>
-                                                <th>E-mail</th>
-                                                <th>Perfil Global</th>
-                                                <th>Áreas Vinculadas</th>
-                                                <th>Status</th>
-                                                <th>Ações</th>
+                                                <th>USUÁRIO</th>
+                                                <th>PERFIL GLOBAL</th>
+                                                <th>ÁREAS VINCULADAS</th>
+                                                <th>STATUS</th>
+                                                <th className="text-right">AÇÕES</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {filteredUsers.map(u => (
-                                                <tr key={u.id} className={!u.ativo ? 'user-row-inactive' : ''}>
+                                                <tr key={u.id} className={!u.ativo ? 'jhe-user-row-inactive' : ''}>
                                                     <td>
-                                                        <div className="user-avatar-cell">
-                                                            <div className={`user-avatar-circle role-${u.role_global}`}>
+                                                        <div className="jhe-user-avatar-cell">
+                                                            <div className="jhe-user-avatar-squircle">
                                                                 {getInitials(u.nome_completo)}
                                                             </div>
-                                                            <span className="font-semibold">{u.nome_completo}</span>
+                                                            <div className="jhe-user-info-col">
+                                                                <span className="jhe-user-name">{u.nome_completo}</span>
+                                                                <span className="jhe-user-email">{u.email}</span>
+                                                            </div>
                                                         </div>
                                                     </td>
-                                                    <td className="text-muted">{u.email}</td>
                                                     <td>
-                                                        <span className={`role-badge role-${u.role_global}`}>
+                                                        <span className={`jhe-role-pill role-${String(u.role_global).toLowerCase()}`}>
                                                             {u.role_global}
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        {u.cargos && u.cargos.length > 0 ? (
-                                                            <div className="user-cargos-tags">
+                                                        {String(u.role_global).toLowerCase() === 'admin' ? (
+                                                            <span className="jhe-area-chip-admin-all">
+                                                                ⚡ Acesso Global (Todas as Áreas)
+                                                            </span>
+                                                        ) : u.cargos && u.cargos.length > 0 ? (
+                                                            <div className="jhe-user-cargos-tags">
                                                                 {u.cargos.map((c, idx) => (
-                                                                    <span key={idx} className="cargo-tag">
+                                                                    <span key={idx} className="jhe-cargo-tag">
                                                                         {c.no_titulo} {c.papel_no_cargo ? `(${c.papel_no_cargo})` : ''}
                                                                     </span>
                                                                 ))}
                                                             </div>
                                                         ) : (
-                                                            <span className="text-muted-italics">Sem vínculo direto</span>
+                                                            <span className="text-muted-italics">Sem vínculo</span>
                                                         )}
                                                     </td>
                                                     <td>
-                                                        <span className={`status-badge ${u.ativo ? 'active' : 'inactive'}`}>
+                                                        <span className={`jhe-status-pill ${u.ativo ? 'status-active' : 'status-inactive'}`}>
                                                             {u.ativo ? 'Ativo' : 'Inativo'}
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        <div className="user-action-buttons">
+                                                        <div className="jhe-user-action-buttons">
                                                             <button
                                                                 onClick={() => handleResetPassword(u)}
-                                                                className="btn-action-key"
-                                                                title="Resetar senha para o padrão JHE@123"
+                                                                className="jhe-btn-action"
+                                                                title="Redefinir senha (Jhe@2026)"
                                                             >
-                                                                <Key size={14} />
+                                                                <Key size={16} />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleOpenEditForm(u)}
-                                                                className="btn-action-edit"
+                                                                className="jhe-btn-action"
                                                                 title="Editar dados e vínculos"
                                                             >
-                                                                <Edit size={14} />
+                                                                <Edit size={16} />
                                                             </button>
 
                                                             <button
                                                                 onClick={() => handleToggleUserStatus(u)}
-                                                                className={`btn-action-toggle ${u.ativo ? 'deactivate' : 'activate'}`}
-                                                                title={u.ativo ? "Desativar usuário" : "Ativar usuário"}
+                                                                className={`jhe-btn-action ${u.ativo ? 'jhe-btn-danger' : 'jhe-btn-success'}`}
+                                                                title={u.ativo ? "Inativar usuário" : "Ativar usuário"}
                                                             >
-                                                                {u.ativo ? <UserX size={14} /> : <UserCheck size={14} />}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteUser(u)}
-                                                                className="btn-action-delete"
-                                                                title="Excluir usuário"
-                                                            >
-                                                                <Trash2 size={14} />
+                                                                {u.ativo ? <UserX size={16} /> : <UserCheck size={16} />}
                                                             </button>
                                                         </div>
                                                     </td>

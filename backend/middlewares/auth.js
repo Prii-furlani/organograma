@@ -192,6 +192,58 @@ function checkAdminRole(req, res, next) {
     next();
 }
 
+/**
+ * Middleware para validar a Matriz Hierárquica na Gestão de Usuários.
+ * - Admin: Permissão total.
+ * - Diretor: Pode criar/editar Diretor, Coordenador, Colaborador.
+ * - Coordenador: Pode criar/editar Coordenador, Colaborador.
+ * - Valida se as áreas vinculadas estão dentro da árvore permitida.
+ */
+async function checkUserManagementPermission(req, res, next) {
+    if (!req.user) {
+        return res.status(401).json({ error: 'Acesso não autorizado. Faça login para continuar.' });
+    }
+
+    const role = String(req.user.role_global || '').toUpperCase();
+    if (role === 'COLABORADOR') {
+        return res.status(403).json({ error: 'Acesso negado: colaboradores não podem gerenciar usuários.' });
+    }
+
+    if (role === 'ADMIN') {
+        return next();
+    }
+
+    try {
+        if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+            const targetRoleRaw = req.body.role_global;
+            if (targetRoleRaw) {
+                const targetRole = String(targetRoleRaw).toUpperCase();
+                if (role === 'DIRETOR' && targetRole === 'ADMIN') {
+                    return res.status(403).json({ error: 'Diretores não podem gerenciar perfis de Administrador.' });
+                }
+                if (role === 'COORDENADOR' && (targetRole === 'ADMIN' || targetRole === 'DIRETOR')) {
+                    return res.status(403).json({ error: 'Coordenadores não podem gerenciar perfis de Administrador ou Diretor.' });
+                }
+            }
+
+            const targetNosIds = req.body.nos_ids || req.body.no_ids || [];
+            if (Array.isArray(targetNosIds) && targetNosIds.length > 0) {
+                const permittedNodeIds = await getUserPermittedNodeIds(req.user.id, req.user.role_global);
+                if (permittedNodeIds !== 'all') {
+                    const invalidNodes = targetNosIds.filter(id => !permittedNodeIds.includes(parseInt(id, 10)));
+                    if (invalidNodes.length > 0) {
+                        return res.status(403).json({ error: 'Você não tem permissão para vincular usuários a áreas fora de sua hierarquia.' });
+                    }
+                }
+            }
+        }
+        return next();
+    } catch (error) {
+        console.error('Erro ao verificar permissão de gestão de usuários:', error);
+        return res.status(500).json({ error: 'Erro interno ao validar permissões.' });
+    }
+}
+
 module.exports = {
     JWT_SECRET,
     authenticateToken,
@@ -199,5 +251,6 @@ module.exports = {
     getUserPermittedNodeIds,
     checkScopePermission,
     checkNodeEditPermission,
-    checkAdminRole
+    checkAdminRole,
+    checkUserManagementPermission
 };

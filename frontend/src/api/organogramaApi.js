@@ -79,6 +79,15 @@ export const deleteNode = async (id) => {
     return response.data;
 };
 
+// ==========================================
+// AUDITORIA E LOGS
+// ==========================================
+
+export const getOrganogramaLogs = async (params = {}) => {
+    const response = await api.get('/organograma/logs', { params });
+    return response.data;
+};
+
 /**
  * Move um nó para um novo nó pai (reparenting) e recalcula níveis.
  * @param {number|string} id - ID do nó a ser movido

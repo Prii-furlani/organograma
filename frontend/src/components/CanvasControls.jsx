@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { ZoomIn, ZoomOut, Maximize, Sun, Moon, Lock, Unlock, ChevronsUpDown, ChevronsDownUp } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, Sun, Moon, Lock, Unlock, ChevronsUpDown, ChevronsDownUp, Tv } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 
 function CanvasControls({ 
@@ -15,7 +15,8 @@ function CanvasControls({
     isCanvasLocked, 
     onToggleCanvasLock,
     onExpandAll,
-    onCollapseAll
+    onCollapseAll,
+    onStartPresentation
 }) {
     const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -79,6 +80,16 @@ function CanvasControls({
                 title={isCanvasLocked ? "Canvas Travado (Clique para Destravar Navegação)" : "Travar Navegação do Canvas"}
             >
                 {isCanvasLocked ? <Lock size={18} /> : <Unlock size={18} />}
+            </button>
+
+            <div className="canvas-toolbar-divider"></div>
+
+            <button 
+                onClick={onStartPresentation} 
+                className="canvas-control-btn presentation-btn-trigger"
+                title="Iniciar Modo Apresentação Executivo"
+            >
+                <Tv size={18} className="text-cyan-600" />
             </button>
         </div>
     );

@@ -28,6 +28,12 @@ router.get('/niveis', organogramaController.getNiveisHierarquicos);
 router.get('/nos/flat', organogramaController.getAllNodesFlat);
 
 /**
+ * @route GET /api/organograma/logs
+ * @description Retorna o histórico de auditoria de alterações do organograma.
+ */
+router.get('/logs', authenticateToken, organogramaController.getOrganogramaLogs);
+
+/**
  * @route POST /api/organograma e POST /api/organograma/nos
  * @description Cria um novo nó no organograma (Requer Autenticação e Permissão de Escopo no Pai).
  */

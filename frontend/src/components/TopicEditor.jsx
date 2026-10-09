@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Search, Plus, User, Edit3, Trash2, ChevronDown, ChevronRight, GripVertical, AlertCircle, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Search, Plus, User, Edit3, Trash2, ChevronDown, ChevronRight, GripVertical, AlertCircle, ShieldAlert, Undo2, Redo2, History, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
 import { deleteNode, moveNode } from '../api/organogramaApi';
-import { confirmCascadeDeleteNode, confirmDeleteNode, confirmHierarchyTransfer, showToast } from '../utils/alerts';
+import { confirmCascadeDeleteNode, confirmDeleteNode, showToast } from '../utils/alerts';
+import ConfirmMoveModal from './ConfirmMoveModal';
+import AuditLogsModal from './AuditLogsModal';
 
 const TopicItem = ({ 
     node, 
@@ -12,10 +14,12 @@ const TopicItem = ({
     onEditNode, 
     onRefreshTree,
     searchQuery,
-    onMoveRequest
+    onMoveRequest,
+    expandedNodeIds,
+    onToggleExpand
 }) => {
     const { hasPermissionToEdit } = useAuth();
-    const [isExpanded, setIsExpanded] = useState(true);
+    const isExpanded = expandedNodeIds ? (expandedNodeIds.has(node.id) || expandedNodeIds.has(String(node.id))) : true;
     const [isDragOver, setIsDragOver] = useState(false);
 
     const hasChildren = node.children && node.children.length > 0;
@@ -153,7 +157,7 @@ const TopicItem = ({
                     </div>
 
                     {/* Seta de expansão */}
-                    <div className="topic-chevron-box" onClick={() => setIsExpanded(!isExpanded)}>
+                    <div className="topic-chevron-box" onClick={() => onToggleExpand && onToggleExpand(node.id)}>
                         {hasChildren ? (
                             isExpanded ? <ChevronDown size={16} className="topic-chevron-icon" /> : <ChevronRight size={16} className="topic-chevron-icon" />
                         ) : (
@@ -230,6 +234,8 @@ const TopicItem = ({
                             onRefreshTree={onRefreshTree}
                             searchQuery={searchQuery}
                             onMoveRequest={onMoveRequest}
+                            expandedNodeIds={expandedNodeIds}
+                            onToggleExpand={onToggleExpand}
                         />
                     ))}
                 </div>
@@ -250,6 +256,22 @@ const findNodeInTree = (nodes, id) => {
     return null;
 };
 
+// Coleta recursivamente todos os IDs de nós que possuem filhos
+const getAllParentNodeIds = (nodes) => {
+    let ids = [];
+    const collect = (list) => {
+        if (!list) return;
+        list.forEach(node => {
+            if (node.children && node.children.length > 0) {
+                ids.push(node.id);
+                collect(node.children);
+            }
+        });
+    };
+    collect(nodes);
+    return ids;
+};
+
 // Verifica se childId é um descendente de rootNode
 const isDescendant = (rootNode, childId) => {
     if (!rootNode.children) return false;
@@ -263,6 +285,42 @@ const isDescendant = (rootNode, childId) => {
 function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefreshTree }) {
     const { user, hasPermissionToEdit } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
+    const [confirmMoveData, setConfirmMoveData] = useState(null);
+    const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+
+    // Estado do Set de IDs expandidos
+    const [expandedNodeIds, setExpandedNodeIds] = useState(() => {
+        return new Set(getAllParentNodeIds(treeData));
+    });
+
+    // Atualiza o estado de expansão inicial quando treeData carrega/muda
+    useEffect(() => {
+        if (treeData && treeData.length > 0) {
+            setExpandedNodeIds(new Set(getAllParentNodeIds(treeData)));
+        }
+    }, [treeData]);
+
+    const handleExpandAll = () => {
+        const allParentIds = getAllParentNodeIds(treeData);
+        setExpandedNodeIds(new Set(allParentIds));
+    };
+
+    const handleCollapseAll = () => {
+        setExpandedNodeIds(new Set());
+    };
+
+    const handleToggleExpand = (nodeId) => {
+        setExpandedNodeIds(prev => {
+            const next = new Set(prev);
+            if (next.has(nodeId) || next.has(String(nodeId))) {
+                next.delete(nodeId);
+                next.delete(String(nodeId));
+            } else {
+                next.add(nodeId);
+            }
+            return next;
+        });
+    };
 
     const handleMoveRequest = async (draggedId, targetNode) => {
         const draggedNode = findNodeInTree(treeData, draggedId);
@@ -311,23 +369,12 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
         };
         countSubs(draggedNode);
 
-        if (subCount > 0) {
-            const confirmed = await confirmHierarchyTransfer(draggedNode.titulo, subCount, targetNode.titulo);
-            if (!confirmed) {
-                // Usuário cancelou: reverte e mantém na árvore original
-                return;
-            }
-        }
+        // Sempre exibe o modal de confirmação
+        setConfirmMoveData({ draggedNode, targetNode, subCount });
+    };
 
-        try {
-            await moveNode(draggedNode.id, targetNode.id);
-            await onRefreshTree();
-            showToast(`Área "${draggedNode.titulo}" transferida com sucesso.`, 'success');
-        } catch (error) {
-            console.error('Erro ao transferir setor:', error);
-            const errorMsg = error.response?.data?.error || 'Não foi possível transferir o setor.';
-            Swal.fire('Erro na transferência', errorMsg, 'error');
-        }
+    const handleConfirmMoveClose = () => {
+        setConfirmMoveData(null);
     };
 
     const handleCreateNewRoot = () => {
@@ -361,24 +408,55 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
                     </div>
                     <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-amber-700 dark:text-[#EDB580] tracking-wider uppercase">Administração da Estrutura</span>
-                        <span className="text-lg font-bold text-[#0F2C4A] dark:text-white leading-tight">Editor em tópicos</span>
+                        <span className="jhe-topic-editor-title">Editor em tópicos</span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-6">
-                    <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
-                        <input 
-                            type="text" 
-                            placeholder="Localizar um tópico..." 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-72 h-10 pl-9 pr-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                        />
+                    <div className="flex items-center gap-2">
+                        <button className="jhe-topic-btn-icon" disabled title="Desfazer (Ctrl+Z)">
+                            <Undo2 size={18} />
+                        </button>
+                        <button className="jhe-topic-btn-icon" disabled title="Refazer (Ctrl+Y)">
+                            <Redo2 size={18} />
+                        </button>
+
+                        {/* GRUPO DE EXPANSÃO / RECOLHIMENTO DA ÁRVORE */}
+                        <div className="jhe-tree-toggle-group">
+                            <button 
+                                type="button"
+                                className="jhe-btn-tree-toggle"
+                                onClick={handleExpandAll}
+                                title="Expandir todos os tópicos"
+                            >
+                                <ChevronsDown size={15} />
+                                <span>Expandir tudo</span>
+                            </button>
+                            <button 
+                                type="button"
+                                className="jhe-btn-tree-toggle"
+                                onClick={handleCollapseAll}
+                                title="Recolher todos os tópicos"
+                            >
+                                <ChevronsUp size={15} />
+                                <span>Recolher tudo</span>
+                            </button>
+                        </div>
+
+                        <div className="relative ml-2">
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+                            <input 
+                                type="text" 
+                                placeholder="Localizar um tópico..." 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-72 h-10 pl-9 pr-4 rounded-xl jhe-topic-search-input text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                            />
+                        </div>
                     </div>
                     <button 
                         onClick={handleCreateNewRoot}
-                        className="h-10 px-5 bg-[#0F2C4A] hover:bg-[#194775] dark:bg-[#61CBE8] dark:hover:bg-white dark:text-[#020931] text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors shadow-md"
+                        className="jhe-topic-btn-primary"
                     >
                         <Plus size={16} />
                         Novo tópico
@@ -423,6 +501,8 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
                                 onRefreshTree={onRefreshTree}
                                 searchQuery={searchQuery}
                                 onMoveRequest={handleMoveRequest}
+                                expandedNodeIds={expandedNodeIds}
+                                onToggleExpand={handleToggleExpand}
                             />
                         ))}
                         
@@ -434,6 +514,29 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
                     </div>
                 </div>
             </main>
+
+            {/* Botão Flutuante de Logs */}
+            <button 
+                type="button"
+                className="jhe-btn-floating-logs"
+                onClick={() => setIsLogsModalOpen(true)}
+                title="Histórico de Alterações e Auditoria"
+            >
+                <History size={20} />
+            </button>
+
+            <ConfirmMoveModal 
+                isOpen={!!confirmMoveData} 
+                onClose={handleConfirmMoveClose} 
+                draggedNode={confirmMoveData?.draggedNode} 
+                targetNode={confirmMoveData?.targetNode} 
+                onRefreshTree={onRefreshTree} 
+            />
+
+            <AuditLogsModal 
+                isOpen={isLogsModalOpen}
+                onClose={() => setIsLogsModalOpen(false)}
+            />
         </div>
     );
 }

@@ -597,7 +597,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                             type="text"
                             value={formData.responsavel}
                             onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-                            placeholder="ex: Dr. Hélio, Leandro Furlani"
+                            placeholder="ex: Dr. Hélio, Leandro Neves"
                             className="drawer-input"
                         />
                     </div>

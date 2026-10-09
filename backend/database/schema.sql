@@ -254,13 +254,32 @@ CREATE TABLE IF NOT EXISTS `usuario_cargos_nos` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Vínculos N:N entre usuários e cargos/nós do organograma';
 
 -- =============================================================================
+-- TABELA: organograma_logs
+-- O QUE FAZ: Auditoria completa das ações no organograma.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `organograma_logs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `usuario_id` INT NULL,
+  `usuario_nome` VARCHAR(255) NOT NULL,
+  `usuario_email` VARCHAR(255) NOT NULL,
+  `tipo_acao` ENUM('CRIACAO', 'EDICAO', 'MOVIMENTACAO', 'EXCLUSAO') NOT NULL,
+  `alvo_tipo` VARCHAR(50) NOT NULL DEFAULT 'ESTRUTURA',
+  `alvo_id` INT NULL,
+  `alvo_nome` VARCHAR(255) NOT NULL,
+  `detalhes` JSON NOT NULL,
+  `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_logs_usuario` (`usuario_id`),
+  INDEX `idx_logs_data` (`criado_em`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Auditoria do organograma';
+
+-- =============================================================================
 -- DADOS INICIAIS DE USUÁRIOS E PERMISSÕES (SEED)
 -- Admin (admin@jhe.com.br / Admin@123 ou admin123)
 -- Leandro (leandro@jhe.com.br / leandro123)
 -- =============================================================================
 INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `senha_hash`, `role_global`, `primeiro_acesso`, `ativo`) VALUES
 (1, 'Administrador do Sistema', 'admin@jhe.com.br', '$2b$10$Ep64l/dYVj1Jc.KjG.k4v.O8kO.YhIqYqX0K4t9oH3vBqA9C5P8aK', 'admin', 0, 1),
-(2, 'Leandro Furlani', 'leandro@jhe.com.br', '$2b$10$HrGPsO1lw4K46M9UVnXMmu8DdUXVuSY8UW8obS809ecXZ0V7uTkQO', 'diretor', 0, 1)
+(2, 'Leandro Neves', 'leandro@jhe.com.br', '$2b$10$HrGPsO1lw4K46M9UVnXMmu8DdUXVuSY8UW8obS809ecXZ0V7uTkQO', 'diretor', 0, 1)
 ON DUPLICATE KEY UPDATE `nome_completo` = VALUES(`nome_completo`), `senha_hash` = VALUES(`senha_hash`), `role_global` = VALUES(`role_global`), `primeiro_acesso` = VALUES(`primeiro_acesso`);
 
 

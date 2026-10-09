@@ -9,6 +9,8 @@ import { ReactFlow, Background, ReactFlowProvider } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import MindMapNode from '../components/MindMapNode';
+import CustomNode from '../components/CustomNode';
+import CeoNode from '../components/CeoNode';
 import Navbar from '../components/Navbar';
 import EditModeBanner from '../components/EditModeBanner';
 import CanvasControls from '../components/CanvasControls';
@@ -26,26 +28,16 @@ import { useOrganograma } from '../hooks/useOrganograma';
 
 import { useDarkMode } from '../hooks/useDarkMode';
 import { fetchOrganogramaTree, fetchFlatNodesList } from '../api/organogramaApi';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PlayCircle, PauseCircle, ChevronLeft, ChevronRight, X, Tv } from 'lucide-react';
 import { Handle, Position } from '@xyflow/react';
+import { usePresentationMode } from '../hooks/usePresentationMode';
 
 import { StraightHorizontalEdge, StraightVerticalEdge, StepLTurnEdge, StraightEdge, OrthogonalStepEdge } from '../components/CustomEdges';
 
-// Nó auxiliar invisível para roteamento ortogonal (Espinha Dorsal e Barramento)
-const JunctionNode = ({ id }) => (
-    <div className="junction-node-wrapper">
-        <Handle type="target" position={Position.Top} id="top" className="junction-handle" />
-        <Handle type="source" position={Position.Bottom} id="bottom" className="junction-handle" />
-        <Handle type="source" position={Position.Left} id="left" className="junction-handle" />
-        <Handle type="target" position={Position.Left} id="left-target" className="junction-handle" />
-        <Handle type="source" position={Position.Right} id="right" className="junction-handle" />
-        <Handle type="target" position={Position.Right} id="right-target" className="junction-handle" />
-    </div>
-);
-
 const nodeTypes = {
     mindmap: MindMapNode,
-    junction: JunctionNode
+    customNode: CustomNode,
+    ceoNode: CeoNode
 };
 
 const edgeTypes = {
@@ -137,6 +129,19 @@ function OrganogramaContent() {
         allNodesFlat
     );
 
+    const {
+        isPresentationMode,
+        currentStep,
+        totalSteps,
+        currentStepData,
+        isPlaying,
+        startPresentation,
+        stopPresentation,
+        nextStep,
+        prevStep,
+        togglePlay
+    } = usePresentationMode(expandAll);
+
     if (isLoading) {
         return (
             <div className="w-screen h-screen flex flex-col items-center justify-center bg-canvas text-main">
@@ -162,16 +167,18 @@ function OrganogramaContent() {
             {!isEditMode ? (
                 <>
                     {/* 1. Navbar Executiva no Topo */}
-                    <Navbar 
-                        onOpenLoginModal={() => setIsLoginModalOpen(true)}
-                        isEditMode={isEditMode}
-                        onToggleEditMode={() => setIsEditMode(!isEditMode)}
-                        onOpenCreateDrawer={() => handleOpenCreateDrawer(null)}
-                        onOpenUserMgmt={() => setIsUserMgmtOpen(true)}
-                        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
-                        allNodesFlat={allNodesFlat}
-                        onFocusNode={focusNode}
-                    />
+                    {!isPresentationMode && (
+                        <Navbar 
+                            onOpenLoginModal={() => setIsLoginModalOpen(true)}
+                            isEditMode={isEditMode}
+                            onToggleEditMode={() => setIsEditMode(!isEditMode)}
+                            onOpenCreateDrawer={() => handleOpenCreateDrawer(null)}
+                            onOpenUserMgmt={() => setIsUserMgmtOpen(true)}
+                            onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+                            allNodesFlat={allNodesFlat}
+                            onFocusNode={focusNode}
+                        />
+                    )}
 
                     {/* Canvas Principal do React Flow */}
                     <div className="flex-1 relative w-full h-full">
@@ -189,6 +196,13 @@ function OrganogramaContent() {
                             zoomOnPinch={!isCanvasLocked}
                             panOnScroll={false}
                             fitView
+                            fitViewOptions={{ padding: 0.2, duration: 400 }}
+                            defaultEdgeOptions={{
+                                type: 'smoothstep',
+                                className: 'jhe-organograma-edge',
+                                animated: false
+                            }}
+                            proOptions={{ hideAttribution: true }}
                             minZoom={0.1}
                             maxZoom={2}
                             className="bg-canvas"
@@ -197,21 +211,54 @@ function OrganogramaContent() {
                         </ReactFlow>
 
                         {/* 2. Barra Flutuante de Controles no Canto Inferior Esquerdo */}
-                        <CanvasControls 
-                            isDark={isDark}
-                            onToggleDarkMode={toggleDarkMode}
-                            isCanvasLocked={isCanvasLocked}
-                            onToggleCanvasLock={() => setIsCanvasLocked(!isCanvasLocked)}
-                            onExpandAll={expandAll}
-                            onCollapseAll={collapseAll}
-                        />
+                        {!isPresentationMode && (
+                            <CanvasControls 
+                                isDark={isDark}
+                                onToggleDarkMode={toggleDarkMode}
+                                isCanvasLocked={isCanvasLocked}
+                                onToggleCanvasLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                                onExpandAll={expandAll}
+                                onCollapseAll={collapseAll}
+                                onStartPresentation={startPresentation}
+                            />
+                        )}
 
-                        {/* 3. Botão Flutuante de Ajuda no Canto Inferior Direito */}
-                        <HelpFloatingBtn 
-                            onClick={() => setShowHelp(!showHelp)}
-                        />
+                        {/* 3. Dock Flutuante de Apresentação */}
+                        {isPresentationMode && (
+                            <div className="jhe-presentation-dock">
+                                <button onClick={prevStep} className="dock-btn" title="Anterior">
+                                    <ChevronLeft size={24} />
+                                </button>
+                                
+                                <button onClick={togglePlay} className="dock-btn play-btn" title={isPlaying ? "Pausar" : "Reproduzir"}>
+                                    {isPlaying ? <PauseCircle size={28} /> : <PlayCircle size={28} />}
+                                </button>
+                                
+                                <button onClick={nextStep} className="dock-btn" title="Próximo">
+                                    <ChevronRight size={24} />
+                                </button>
 
-                        {/* 4. Footer Institucional (Copyright) */}
+                                <div className="dock-info">
+                                    <span className="dock-step">Etapa {currentStep + 1} de {totalSteps}</span>
+                                    <span className="dock-title">{currentStepData?.title}</span>
+                                </div>
+
+                                <div className="dock-divider" />
+
+                                <button onClick={stopPresentation} className="dock-btn exit-btn" title="Sair da Apresentação">
+                                    <X size={24} />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 4. Botão Flutuante de Ajuda no Canto Inferior Direito */}
+                        {!isPresentationMode && (
+                            <HelpFloatingBtn 
+                                onClick={() => setShowHelp(!showHelp)}
+                            />
+                        )}
+
+                        {/* 5. Footer Institucional (Copyright) */}
                         <footer className="jhe-footer">
                             © 2026 JHE Engenharia. Todos os direitos reservados.
                         </footer>
@@ -220,7 +267,10 @@ function OrganogramaContent() {
             ) : (
                 <TopicEditor 
                     treeData={treeData} 
-                    onClose={() => setIsEditMode(false)}
+                    onClose={() => {
+                        setIsEditMode(false);
+                        loadData();
+                    }}
                     onOpenCreateDrawer={handleOpenCreateDrawer}
                     onEditNode={handleEditNode}
                     onRefreshTree={loadData}

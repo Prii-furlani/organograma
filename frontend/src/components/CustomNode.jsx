@@ -1,5 +1,5 @@
 /**
- * Cabeçalho Arquitetural: Componente visual MindMapNode que representa cada nó no React Flow (JHE Engenharia).
+ * Cabeçalho Arquitetural: Componente CustomNode para renderização dos Cards do Organograma (JHE Engenharia).
  * Dimensão padronizada: largura de 260px e altura de 88px/92px.
  * Handles: Position.Top (in), Position.Bottom (out), Position.Left e Position.Right com a classe jhe-handle.
  */
@@ -40,7 +40,7 @@ const getLevelClasses = (tipo) => {
     }
 };
 
-function MindMapNode({ data }) {
+export function CustomNode({ data }) {
     const IconComponent = IconMap[data.icone] || IconMap.default;
     
     const isCollapsed = data.isCollapsed;
@@ -62,15 +62,15 @@ function MindMapNode({ data }) {
     const metaTexto = [nivelTexto, responsavelTexto].filter(Boolean).join(' • ');
 
     let scopeClass = '';
-    let nodeTooltip = 'Clique no nó para ver detalhes no modal lateral';
+    let nodeTooltip = 'Clique no nó para ver detalhes';
 
     if (isEditMode) {
         if (canEdit) {
             scopeClass = 'node-editable-scope';
-            nodeTooltip = 'Você possui permissão de edição para esta área.';
+            nodeTooltip = 'Permissão de edição habilitada';
         } else {
             scopeClass = 'node-locked-scope';
-            nodeTooltip = 'Área sob gestão de outra liderança (somente leitura)';
+            nodeTooltip = 'Somente leitura (outra liderança)';
         }
     }
 
@@ -96,23 +96,17 @@ function MindMapNode({ data }) {
         return (
             <div 
                 className={`jhe-ceo-card ${collapseClass} ${scopeClass} ${highlightClass}`}
-                onClick={() => {
-                    if (data.onNodeClick) data.onNodeClick(data);
-                }}
+                onClick={() => data.onNodeClick && data.onNodeClick(data)}
                 title={nodeTooltip}
             >
                 <div className="jhe-ceo-accent-bar" />
                 <Handle type="target" position={Position.Top} id="in" className="jhe-handle" />
 
                 <div className="jhe-ceo-header">
-                    <h3 className="jhe-ceo-title">
-                        {data.titulo || "Co-CEOs"}
-                    </h3>
-                    <div className="jhe-ceo-subtitle">
-                        DIREÇÃO EXECUTIVA
-                    </div>
+                    <h3 className="jhe-ceo-title">{data.titulo || "Co-CEOs"}</h3>
+                    <div className="jhe-ceo-subtitle">DIREÇÃO EXECUTIVA</div>
                 </div>
-                
+
                 <div className="jhe-ceo-avatars-row">
                     {gestores.map((gestor, idx) => (
                         <div key={idx} className="jhe-ceo-avatar-item">
@@ -150,24 +144,15 @@ function MindMapNode({ data }) {
     return (
         <div 
             className={`jhe-node-card node-standard-card ${themeClass} ${collapseClass} ${scopeClass} ${highlightClass}`}
-            onClick={() => {
-                if (data.onNodeClick) data.onNodeClick(data);
-            }}
+            onClick={() => data.onNodeClick && data.onNodeClick(data)}
             title={nodeTooltip}
         >
             <div className="node-accent-bar" />
             
-            {/* Conectores Verticais Padrão */}
-            <Handle type="target" position={Position.Top} id="in" className="jhe-handle" />
-            <Handle type="source" position={Position.Bottom} id="out" className="jhe-handle" />
+            {/* Conectores Universais Padrão */}
+            <Handle type="target" position={Position.Top} className="jhe-handle" />
+            <Handle type="source" position={Position.Bottom} className="jhe-handle" />
 
-            {/* Conectores Laterais Exclusivos para Staff e Espinhas Bipolares */}
-            <Handle type="target" position={Position.Left} id="left-target" className="jhe-handle" />
-            <Handle type="target" position={Position.Right} id="right-target" className="jhe-handle" />
-            <Handle type="source" position={Position.Left} id="left" className="jhe-handle" />
-            <Handle type="source" position={Position.Right} id="right" className="jhe-handle" />
-
-            {/* Layout Interno Padronizado */}
             <div className="jhe-node-body">
                 <div className="jhe-node-icon-box">
                     <IconComponent size={20} strokeWidth={2.25} />
@@ -175,18 +160,11 @@ function MindMapNode({ data }) {
                 
                 <div className="jhe-node-text">
                     <div className="jhe-node-name">{data.titulo}</div>
-
-                    {descricaoTexto && (
-                        <div className="jhe-node-desc">{descricaoTexto}</div>
-                    )}
-
-                    {metaTexto && (
-                        <div className="jhe-node-meta">{metaTexto}</div>
-                    )}
+                    {descricaoTexto && <div className="jhe-node-desc">{descricaoTexto}</div>}
+                    {metaTexto && <div className="jhe-node-meta">{metaTexto}</div>}
                 </div>
             </div>
 
-            {/* Expander Pill */}
             {hasChildren && (
                 <div className="node-pill-badge-container">
                     <button 
@@ -197,7 +175,9 @@ function MindMapNode({ data }) {
                         }}
                         title={isCollapsed ? "Expandir subordinados" : "Recolher subordinados"}
                     >
-                        <span className="pill-icon">{isCollapsed ? <ChevronRight size={12} strokeWidth={3}/> : <ChevronDown size={12} strokeWidth={3}/>}</span>
+                        <span className="pill-icon">
+                            {isCollapsed ? <ChevronRight size={12} strokeWidth={3}/> : <ChevronDown size={12} strokeWidth={3}/>}
+                        </span>
                         <span className="pill-count">{childrenCount}</span>
                     </button>
                 </div>
@@ -206,4 +186,4 @@ function MindMapNode({ data }) {
     );
 }
 
-export default MindMapNode;
+export default CustomNode;

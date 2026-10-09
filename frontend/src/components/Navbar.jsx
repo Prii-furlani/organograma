@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Building2, LogIn, LogOut, UserCheck, Shield, Edit3, Plus, Eye, Users, ChevronDown, Search, KeyRound } from 'lucide-react';
+import { Building2, LogIn, LogOut, UserCheck, Shield, Edit3, Plus, Eye, Users, ChevronDown, Search, KeyRound, FolderTree, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 function Navbar({ 
@@ -84,14 +84,12 @@ function Navbar({
     return (
         <header className="executive-navbar">
             {/* Lado Esquerdo: Marca / Logo JHE Engenharia */}
-            <div className="navbar-brand-container">
+            <div className="navbar-brand-container" style={{ display: 'flex', alignItems: 'center' }}>
                 <div className="navbar-logo-wrapper">
                     <img src="/logo.png" alt="Logo JHE" className="navbar-logo-img" />
                 </div>
-                <div className="navbar-brand-text">
-                    <h1 className="brand-title">JHE ENGENHARIA</h1>
-                    <span className="brand-subtitle">Organograma Corporativo Executivo</span>
-                </div>
+                <div className="jhe-header-divider"></div>
+                <div className="jhe-header-visao-badge">Visão Hierárquica</div>
             </div>
 
             {/* Centro: Barra de Busca Global no Canvas */}
@@ -153,37 +151,37 @@ function Navbar({
 
             {/* Lado Direito: Perfil do Usuário, Modo Edição e Autenticação */}
             <div className="navbar-actions-container">
-                {/* Controles de Modo Edição / Nova Área (apenas gestores) */}
+                {/* Controles de Modo Edição / Nova Área / Gestão de Acessos (apenas gestores) */}
                 {canUseEditMode && (
-                    <div className="navbar-edit-group">
+                    <div className="navbar-edit-group flex items-center gap-2">
+                        {!isEditMode && (
+                            <button
+                                onClick={onOpenUserMgmt}
+                                className="navbar-users-btn edit-mode-inactive flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                title="Gestão de Acessos (Usuários)"
+                            >
+                                <Users size={15} />
+                                <span className="hidden sm:inline text-sm font-medium">Usuários</span>
+                            </button>
+                        )}
+
                         <button
                             onClick={onToggleEditMode}
-                            className={`edit-mode-toggle-btn ${isEditMode ? 'edit-mode-active' : 'edit-mode-inactive'}`}
-                            title={isEditMode ? "Desativar Modo Edição (Voltar ao Modo Apresentação)" : "Ativar Modo Edição de Áreas"}
+                            className={`edit-mode-toggle-btn ${isEditMode ? 'edit-mode-active' : 'edit-mode-inactive'} flex items-center gap-1.5 px-3 py-1.5 rounded-md border transition-colors`}
+                            title={isEditMode ? "Sair do Editor de Estrutura" : "Gerenciar Estrutura (Editor em Tópicos)"}
                         >
                             {isEditMode ? (
                                 <>
-                                    <Edit3 size={15} />
-                                    Modo Edição
+                                    <ArrowLeft size={15} />
+                                    <span className="hidden sm:inline text-sm font-medium">Sair do Editor</span>
                                 </>
                             ) : (
                                 <>
-                                    <Eye size={15} />
-                                    Modo Apresentação
+                                    <FolderTree size={15} />
+                                    <span className="hidden sm:inline text-sm font-medium">Gerenciar Estrutura</span>
                                 </>
                             )}
                         </button>
-
-                        {isEditMode && (
-                            <button
-                                onClick={onOpenCreateDrawer}
-                                className="create-area-btn"
-                                title="Criar uma nova área no organograma"
-                            >
-                                <Plus size={15} />
-                                Nova Área
-                            </button>
-                        )}
                     </div>
                 )}
 
@@ -236,19 +234,6 @@ function Navbar({
                                 </div>
 
                                 <div className="dropdown-divider"></div>
-
-                                {user.role_global === 'admin' && (
-                                    <button
-                                        onClick={() => {
-                                            setDropdownOpen(false);
-                                            onOpenUserMgmt();
-                                        }}
-                                        className="dropdown-action-btn"
-                                    >
-                                        <Users size={15} />
-                                        Gerenciar Usuários
-                                    </button>
-                                )}
 
                                 <button
                                     onClick={() => {

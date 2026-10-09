@@ -8,6 +8,22 @@ const pool = require('../config/database');
 const { buildTree } = require('../utils/treeBuilder');
 
 /**
+ * Função auxiliar para registrar logs de auditoria
+ */
+async function insertLog(req, tipoAcao, alvoId, alvoNome, detalhes, alvoTipo = 'ESTRUTURA') {
+    if (!req.user) return;
+    try {
+        await pool.query(
+            `INSERT INTO organograma_logs (usuario_id, usuario_nome, usuario_email, tipo_acao, alvo_tipo, alvo_id, alvo_nome, detalhes) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.user.id, req.user.nome_completo, req.user.email, tipoAcao, alvoTipo, alvoId, alvoNome, JSON.stringify(detalhes)]
+        );
+    } catch (err) {
+        console.error('Erro ao inserir log de auditoria:', err);
+    }
+}
+
+/**
  * Obtém todos os nós do organograma formatados em estrutura de árvore.
  * Realiza JOIN com niveis_hierarquicos para injetar slug (tipo), classe_css e nome do nível.
  */
@@ -164,6 +180,8 @@ async function createNode(req, res) {
         
         const [result] = await pool.query(query, values);
         
+        await insertLog(req, 'CRIACAO', result.insertId, nodeTitle.trim(), { parent_id: parsedParentId, tipo: tipo || 'Equipe' });
+
         res.status(201).json({ message: 'Nó criado com sucesso', id: result.insertId });
     } catch (error) {
         console.error('Erro ao criar nó:', error);
@@ -241,6 +259,8 @@ async function updateNode(req, res) {
             return res.status(404).json({ error: 'Nó não encontrado.' });
         }
         
+        await insertLog(req, 'EDICAO', nodeId, nodeTitle.trim(), { parent_id: parsedParentId, atualizado: true });
+
         res.json({ message: 'Nó atualizado com sucesso' });
     } catch (error) {
         console.error('Erro ao atualizar nó:', error);
@@ -315,10 +335,25 @@ async function moveNode(req, res) {
         );
         const proximaOrdem = ordemResult[0]?.proxima_ordem || 1;
 
+        const de_pai_nome = allNodes.find(n => n.id === targetNode.parent_id)?.titulo || 'Raiz';
+        const para_pai_nome = allNodes.find(n => n.id === parsedParentId)?.titulo || 'Raiz';
+
         await pool.query(
             'UPDATE organograma_nos SET parent_id = ?, nivel_id = ?, ordem = ?, updated_at = NOW() WHERE id = ?',
             [parsedParentId, finalNivelId, proximaOrdem, nodeId]
         );
+
+        await pool.query(`
+            INSERT INTO organograma_logs (usuario_id, usuario_nome, usuario_email, tipo_acao, alvo_tipo, alvo_id, alvo_nome, detalhes, criado_em)
+            VALUES (?, ?, ?, 'MOVIMENTACAO', 'ESTRUTURA', ?, ?, ?, NOW())
+        `, [
+            req.user?.id || null,
+            req.user?.nome_completo || 'Administrador',
+            req.user?.email || 'admin@jhe.com.br',
+            nodeId,
+            targetNode.titulo,
+            JSON.stringify({ de: de_pai_nome, para: para_pai_nome })
+        ]);
 
         res.json({ 
             message: 'Setor transferido com sucesso.', 
@@ -376,6 +411,8 @@ async function deleteNode(req, res) {
 
         await connection.commit();
 
+        await insertLog(req, 'EXCLUSAO', nodeId, targetNode.titulo, { excluidos_count: result.affectedRows, ids: idsToDelete });
+
         res.json({ 
             message: 'Nó e todos os seus subordinados foram excluídos com sucesso.',
             deleted_count: result.affectedRows,
@@ -390,6 +427,41 @@ async function deleteNode(req, res) {
     }
 }
 
+/**
+ * Retorna os logs de auditoria do organograma.
+ */
+async function getOrganogramaLogs(req, res) {
+    const { usuario_id, data_inicio, data_fim, limite = 500 } = req.query;
+    try {
+        let sql = 'SELECT id, usuario_id, usuario_nome, usuario_email, tipo_acao, alvo_tipo, alvo_id, alvo_nome, detalhes, criado_em FROM organograma_logs WHERE 1=1';
+        const params = [];
+
+        if (usuario_id && usuario_id !== 'todos' && usuario_id !== '') {
+            sql += ' AND usuario_id = ?';
+            params.push(parseInt(usuario_id, 10));
+        }
+
+        if (data_inicio && data_inicio !== 'undefined' && data_inicio.trim() !== '') {
+            sql += ' AND criado_em >= ?';
+            params.push(`${data_inicio} 00:00:00`);
+        }
+
+        if (data_fim && data_fim !== 'undefined' && data_fim.trim() !== '') {
+            sql += ' AND criado_em <= ?';
+            params.push(`${data_fim} 23:59:59`);
+        }
+
+        sql += ' ORDER BY criado_em DESC LIMIT ?';
+        params.push(parseInt(limite, 10));
+
+        const [rows] = await pool.query(sql, params);
+        res.json(rows);
+    } catch (error) {
+        console.error('Erro ao buscar logs do organograma:', error);
+        res.status(500).json({ error: 'Erro interno ao buscar logs.' });
+    }
+}
+
 module.exports = {
     getOrganogramaTree,
     getNiveisHierarquicos,
@@ -397,5 +469,6 @@ module.exports = {
     createNode,
     updateNode,
     moveNode,
-    deleteNode
+    deleteNode,
+    getOrganogramaLogs
 };

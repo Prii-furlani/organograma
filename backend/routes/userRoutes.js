@@ -6,11 +6,11 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticateToken, checkAdminRole } = require('../middlewares/auth');
+const { authenticateToken, checkUserManagementPermission } = require('../middlewares/auth');
 
-// Todas as rotas de usuários requerem autenticação JWT e papel de Administrador
+// Todas as rotas de usuários requerem autenticação JWT e permissão de gestão hierárquica
 router.use(authenticateToken);
-router.use(checkAdminRole);
+router.use(checkUserManagementPermission);
 
 /**
  * @route GET /api/usuarios

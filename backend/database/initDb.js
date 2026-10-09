@@ -147,6 +147,22 @@ async function initDatabaseSchema() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
 
+        // Tabela de Auditoria e Logs
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS \`organograma_logs\` (
+              \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+              \`usuario_id\` INT NOT NULL,
+              \`usuario_nome\` VARCHAR(255) NOT NULL,
+              \`usuario_email\` VARCHAR(255) NOT NULL,
+              \`tipo_acao\` ENUM('CRIACAO', 'EDICAO', 'MOVIMENTACAO', 'EXCLUSAO') NOT NULL,
+              \`alvo_id\` INT,
+              \`alvo_nome\` VARCHAR(255) NOT NULL,
+              \`detalhes\` JSON,
+              \`criado_em\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (\`usuario_id\`) REFERENCES \`usuarios\`(\`id\`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
 
         const bcrypt = require('bcryptjs');
         const adminHash = await bcrypt.hash('Admin@123', 10);
@@ -160,9 +176,18 @@ async function initDatabaseSchema() {
 
         await pool.query(`
             INSERT INTO usuarios (id, nome_completo, email, senha_hash, role_global, ativo) 
-            VALUES (2, 'Leandro Furlani', 'leandro@jhe.com.br', ?, 'diretor', 1)
+            VALUES (2, 'Leandro Neves', 'leandro@jhe.com.br', ?, 'diretor', 1)
             ON DUPLICATE KEY UPDATE nome_completo = VALUES(nome_completo), senha_hash = VALUES(senha_hash), role_global = VALUES(role_global)
         `, [leandroHash]);
+
+        // Migração/Atualização do nome do gestor da Diretoria de TI e no cadastro de usuários
+        try {
+            await pool.query("UPDATE usuarios SET nome_completo = 'Leandro Neves' WHERE nome_completo LIKE '%Leandro Furlani%'");
+            await pool.query("UPDATE organograma_nos SET responsavel = REPLACE(responsavel, 'Leandro Furlani', 'Leandro Neves') WHERE responsavel LIKE '%Leandro Furlani%'");
+            await pool.query("UPDATE organograma_nos SET responsavel = 'Leandro Neves' WHERE id = 120 AND (responsavel IS NULL OR responsavel = '' OR responsavel LIKE '%Leandro%')");
+        } catch (errUpdate) {
+            console.log('[DB-Init] Aviso ao atualizar gestor Leandro Neves:', errUpdate.message);
+        }
 
         await pool.query(`
             INSERT INTO usuario_cargos_nos (usuario_id, no_id, papel_no_cargo) 
