@@ -91,3 +91,57 @@ export function StepLTurnEdge({
         />
     );
 }
+
+/**
+ * Aresta Reta de Ponta a Ponta sem curva (M sourceX sourceY L targetX targetY).
+ */
+export function StraightEdge({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    style = {},
+    markerEnd,
+    className
+}) {
+    const edgePath = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+
+    return (
+        <path
+            id={id}
+            style={style}
+            className={`react-flow__edge-path ${className || ''}`}
+            d={edgePath}
+            markerEnd={markerEnd}
+        />
+    );
+}
+
+/**
+ * Aresta Ortogonal em Degrau 90° Estrito (M sourceX sourceY V midY H targetX V targetY).
+ * Força traçado ortogonal estrito de engenharia sem qualquer curva automática.
+ */
+export function OrthogonalStepEdge({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    style = {},
+    markerEnd,
+    className
+}) {
+    const midY = sourceY + (targetY - sourceY) / 2;
+    const edgePath = `M ${sourceX} ${sourceY} V ${midY} H ${targetX} V ${targetY}`;
+
+    return (
+        <path
+            id={id}
+            style={style}
+            className={`react-flow__edge-path ${className || ''}`}
+            d={edgePath}
+            markerEnd={markerEnd}
+        />
+    );
+}

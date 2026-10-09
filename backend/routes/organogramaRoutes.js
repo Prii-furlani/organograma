@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const organogramaController = require('../controllers/organogramaController');
-const { authenticateToken, checkNodeEditPermission } = require('../middlewares/auth');
+const { authenticateToken, checkScopePermission } = require('../middlewares/auth');
 
 /**
  * @route GET /api/organograma e GET /api/organograma/nos
@@ -29,23 +29,30 @@ router.get('/nos/flat', organogramaController.getAllNodesFlat);
 
 /**
  * @route POST /api/organograma e POST /api/organograma/nos
- * @description Cria um novo nó no organograma (Requer Autenticação e Permissão no Pai).
+ * @description Cria um novo nó no organograma (Requer Autenticação e Permissão de Escopo no Pai).
  */
-router.post('/', authenticateToken, checkNodeEditPermission, organogramaController.createNode);
-router.post('/nos', authenticateToken, checkNodeEditPermission, organogramaController.createNode);
+router.post('/', authenticateToken, checkScopePermission, organogramaController.createNode);
+router.post('/nos', authenticateToken, checkScopePermission, organogramaController.createNode);
 
 /**
  * @route PUT /api/organograma/:id e PUT /api/organograma/nos/:id
  * @description Atualiza os dados de um nó específico e reparenteia com prevenção de ciclos.
  */
-router.put('/:id', authenticateToken, checkNodeEditPermission, organogramaController.updateNode);
-router.put('/nos/:id', authenticateToken, checkNodeEditPermission, organogramaController.updateNode);
+router.put('/:id', authenticateToken, checkScopePermission, organogramaController.updateNode);
+router.put('/nos/:id', authenticateToken, checkScopePermission, organogramaController.updateNode);
+
+/**
+ * @route PATCH /api/organograma/:id/mover e PATCH /api/organograma/nos/:id/mover
+ * @description Move um nó para um novo nó pai (reparenting) e recalcula os níveis.
+ */
+router.patch('/:id/mover', authenticateToken, checkScopePermission, organogramaController.moveNode);
+router.patch('/nos/:id/mover', authenticateToken, checkScopePermission, organogramaController.moveNode);
 
 /**
  * @route DELETE /api/organograma/:id e DELETE /api/organograma/nos/:id
- * @description Deleta um nó e seus subordinados em cascata.
+ * @description Deleta um nó e seus subordinados em cascata em transação segura.
  */
-router.delete('/:id', authenticateToken, checkNodeEditPermission, organogramaController.deleteNode);
-router.delete('/nos/:id', authenticateToken, checkNodeEditPermission, organogramaController.deleteNode);
+router.delete('/:id', authenticateToken, checkScopePermission, organogramaController.deleteNode);
+router.delete('/nos/:id', authenticateToken, checkScopePermission, organogramaController.deleteNode);
 
 module.exports = router;

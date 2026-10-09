@@ -8,8 +8,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, UserPlus, Shield, ShieldCheck, UserCheck, Trash2, Edit, Save, Loader2, AlertTriangle, CheckSquare, Square, Search, Key, UserX, User } from 'lucide-react';
-import { fetchUsersList, createUserData, updateUserData, deleteUserData } from '../api/organogramaApi';
-import { confirmDeleteUser, confirmToggleUserStatus, showToast } from '../utils/alerts';
+import { fetchUsersList, createUserData, updateUserData, deleteUserData, resetUserPassword } from '../api/organogramaApi';
+import { confirmDeleteUser, confirmToggleUserStatus, confirmResetUserPassword, showToast } from '../utils/alerts';
+
 
 function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
     const [users, setUsers] = useState([]);
@@ -140,8 +141,8 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
             setErrorMsg('O E-mail Institucional é um campo obrigatório.');
             return;
         }
-        if (formMode === 'create' && (!formData.senha || formData.senha.trim().length < 4)) {
-            setErrorMsg('A Senha Inicial é obrigatória e deve ter pelo menos 4 caracteres.');
+        if (formMode === 'create' && formData.senha && formData.senha.trim().length < 4) {
+            setErrorMsg('Se informada, a senha deve ter pelo menos 4 caracteres.');
             return;
         }
 
@@ -176,7 +177,25 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
         }
     };
 
+    const handleResetPassword = async (user) => {
+        const isConfirmed = await confirmResetUserPassword(user.nome_completo);
+        if (!isConfirmed) return;
+
+        setIsSubmitting(true);
+        try {
+            await resetUserPassword(user.id);
+            showToast(`Senha do usuário "${user.nome_completo}" resetada para o padrão Jhe@2026.`, 'success');
+            await loadUsers();
+        } catch (err) {
+            console.error('Erro ao resetar senha:', err);
+            showToast(err.response?.data?.error || 'Erro ao resetar senha do usuário.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const handleToggleUserStatus = async (user) => {
+
         const newStatus = user.ativo ? 0 : 1;
 
         const isConfirmed = await confirmToggleUserStatus(user.nome_completo, newStatus);
@@ -326,20 +345,35 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
                                 </div>
 
                                 <div className="drawer-form-row">
-                                    {/* Senha Inicial / Nova Senha */}
-                                    <div className="drawer-form-group flex-1">
-                                        <label className={`drawer-label ${formMode === 'create' ? 'required' : ''}`}>
-                                            {formMode === 'create' ? 'Senha Inicial' : 'Nova Senha (opcional)'}
-                                        </label>
-                                        <input
-                                            type="password"
-                                            required={formMode === 'create'}
-                                            value={formData.senha}
-                                            onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                                            placeholder="••••••••"
-                                            className="drawer-input"
-                                        />
-                                    </div>
+                                    {/* Senha Inicial (apenas no modo de Edição) / Info Badge no Cadastro */}
+                                    {formMode === 'create' ? (
+                                        <div className="drawer-form-group flex-1">
+                                            <label className="drawer-label">
+                                                Senha Inicial Padrão
+                                            </label>
+                                            <div className="demo-credentials-box">
+                                                <span className="demo-credentials-title">
+                                                    💡 Senha provisória configurada: <strong>Jhe@2026</strong>
+                                                </span>
+                                                <span className="text-xs text-muted">
+                                                    O colaborador será obrigado a cadastrar sua própria senha no primeiro login.
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="drawer-form-group flex-1">
+                                            <label className="drawer-label">
+                                                Nova Senha (opcional)
+                                            </label>
+                                            <input
+                                                type="password"
+                                                value={formData.senha}
+                                                onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+                                                placeholder="Deixe em branco para não alterar"
+                                                className="drawer-input"
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Perfil Base (Role Global) */}
                                     <div className="drawer-form-group flex-1">
@@ -533,12 +567,20 @@ function UserManagementModal({ isOpen, onClose, allNodesFlat }) {
                                                     <td>
                                                         <div className="user-action-buttons">
                                                             <button
+                                                                onClick={() => handleResetPassword(u)}
+                                                                className="btn-action-key"
+                                                                title="Resetar senha para o padrão JHE@123"
+                                                            >
+                                                                <Key size={14} />
+                                                            </button>
+                                                            <button
                                                                 onClick={() => handleOpenEditForm(u)}
                                                                 className="btn-action-edit"
                                                                 title="Editar dados e vínculos"
                                                             >
                                                                 <Edit size={14} />
                                                             </button>
+
                                                             <button
                                                                 onClick={() => handleToggleUserStatus(u)}
                                                                 className={`btn-action-toggle ${u.ativo ? 'deactivate' : 'activate'}`}

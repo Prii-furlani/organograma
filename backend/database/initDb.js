@@ -71,6 +71,13 @@ async function initDatabaseSchema() {
             }
         }
 
+        // 3b. Verifica se o campo 'telefone' existe na tabela organograma_nos
+        const [telColumns] = await pool.query("SHOW COLUMNS FROM organograma_nos LIKE 'telefone'");
+        if (telColumns.length === 0) {
+            console.log('[DB-Init] Adicionando coluna telefone na tabela organograma_nos...');
+            await pool.query("ALTER TABLE organograma_nos ADD COLUMN telefone VARCHAR(50) NULL DEFAULT NULL AFTER email_contato");
+        }
+
         // 4. Garante a tabela de usuários e os dados de seed padrão
         await pool.query(`
             CREATE TABLE IF NOT EXISTS \`usuarios\` (
@@ -79,11 +86,53 @@ async function initDatabaseSchema() {
               \`email\` VARCHAR(150) NOT NULL UNIQUE,
               \`senha_hash\` VARCHAR(255) NOT NULL,
               \`role_global\` ENUM('admin', 'diretor', 'coordenador', 'colaborador') NOT NULL DEFAULT 'colaborador',
+              \`primeiro_acesso\` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = precisa redefinir senha no login',
               \`ativo\` TINYINT(1) NOT NULL DEFAULT 1,
               \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
               \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
+
+        // Migration: Adiciona coluna primeiro_acesso caso não exista na tabela usuarios
+        const [paCols] = await pool.query("SHOW COLUMNS FROM usuarios LIKE 'primeiro_acesso'");
+        if (paCols.length === 0) {
+            console.log('[DB-Init] Adicionando coluna primeiro_acesso na tabela usuarios...');
+            await pool.query("ALTER TABLE usuarios ADD COLUMN primeiro_acesso TINYINT(1) NOT NULL DEFAULT 1 AFTER role_global");
+            // Seta 0 para os usuários iniciais legados (admin e leandro)
+            await pool.query("UPDATE usuarios SET primeiro_acesso = 0 WHERE id IN (1, 2)");
+        }
+
+        // Migration: Adiciona colunas termo_aceite_versao e termo_aceite_em caso não existam
+        const [taCols] = await pool.query("SHOW COLUMNS FROM usuarios LIKE 'termo_aceite_versao'");
+        if (taCols.length === 0) {
+            console.log('[DB-Init] Adicionando colunas de aceite de termos na tabela usuarios...');
+            await pool.query("ALTER TABLE usuarios ADD COLUMN termo_aceite_versao VARCHAR(20) NULL DEFAULT NULL AFTER primeiro_acesso, ADD COLUMN termo_aceite_em DATETIME NULL DEFAULT NULL AFTER termo_aceite_versao");
+        }
+
+        // Tabela de Termos de Serviço
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS \`termos_servico\` (
+              \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+              \`titulo\` VARCHAR(255) NOT NULL DEFAULT 'Termos de Serviço',
+              \`subtitulo\` VARCHAR(255) NOT NULL DEFAULT 'Revise os termos antes de aceitar o acordo.',
+              \`conteudo\` LONGTEXT NOT NULL,
+              \`versao\` VARCHAR(20) NOT NULL DEFAULT '1.0',
+              \`ativo\` TINYINT(1) NOT NULL DEFAULT 1,
+              \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        `);
+
+        // Seed inicial do Termo Vigente 1.0
+        const [termosCount] = await pool.query("SELECT COUNT(*) AS total FROM termos_servico");
+        if (termosCount[0].total === 0) {
+            console.log('[DB-Init] Inserindo Termos de Serviço iniciais (Versão 1.0)...');
+            const textoInicial = `Bem-vindo aos Termos de Serviço da JHE Engenharia.\n\n1. USO DA PLATAFORMA\nA plataforma de Organograma Corporativo da JHE Engenharia destina-se ao gerenciamento de setores, cargos e permissões institucionais. As informações contidas nesta aplicação são de caráter confidencial e restritas aos colaboradores autorizados.\n\n2. RESPONSABILIDADES DO USUÁRIO\nO usuário compromete-se a manter a confidencialidade de suas credenciais de acesso, não compartilhando sua senha com terceiros. Qualquer alteração realizada na estrutura organizacional através do seu perfil será registrada e auditada.\n\n3. PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD)\nOs dados pessoais fornecidos (nome, e-mail corporativo e cargo) são utilizados exclusivamente para fins de autenticação, atribuição de responsabilidades e controle de acesso RBAC no sistema.\n\n4. PROPRIEDADE INTELECTUAL\nToda a estrutura visual, código-fonte e elementos gráficos da plataforma pertencem à JHE Engenharia. É vedada a reprodução total ou parcial sem autorização prévia por escrito.\n\n5. MODIFICAÇÕES DOS TERMOS\nA JHE Engenharia reserva-se o direito de atualizar estes termos periodicamente. As alterações entrarão em vigor após a publicação da nova versão na plataforma.`;
+            await pool.query(
+                `INSERT INTO termos_servico (titulo, subtitulo, conteudo, versao, ativo) VALUES (?, ?, ?, ?, 1)`,
+                ['Termos de Serviço', 'Revise os termos antes de aceitar o acordo.', textoInicial, '1.0']
+            );
+        }
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS \`usuario_cargos_nos\` (
@@ -97,6 +146,7 @@ async function initDatabaseSchema() {
               UNIQUE KEY \`uk_usuario_no\` (\`usuario_id\`, \`no_id\`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         `);
+
 
         const bcrypt = require('bcryptjs');
         const adminHash = await bcrypt.hash('Admin@123', 10);

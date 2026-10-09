@@ -19,13 +19,17 @@ import NodeDrawerEditor from '../components/NodeDrawerEditor';
 import TopicEditor from '../components/TopicEditor';
 import LoginModal from '../components/LoginModal';
 import UserManagementModal from '../components/UserManagementModal';
+import FirstPasswordModal from '../components/FirstPasswordModal';
+import TermsModal from '../components/TermsModal';
+import { useAuth } from '../context/AuthContext';
 import { useOrganograma } from '../hooks/useOrganograma';
+
 import { useDarkMode } from '../hooks/useDarkMode';
 import { fetchOrganogramaTree, fetchFlatNodesList } from '../api/organogramaApi';
 import { Loader2 } from 'lucide-react';
 import { Handle, Position } from '@xyflow/react';
 
-import { StraightHorizontalEdge, StraightVerticalEdge, StepLTurnEdge } from '../components/CustomEdges';
+import { StraightHorizontalEdge, StraightVerticalEdge, StepLTurnEdge, StraightEdge, OrthogonalStepEdge } from '../components/CustomEdges';
 
 // Nó auxiliar invisível para roteamento ortogonal (Espinha Dorsal e Barramento)
 const JunctionNode = ({ id }) => (
@@ -48,11 +52,14 @@ const edgeTypes = {
     straightHorizontal: StraightHorizontalEdge,
     straightVertical: StraightVerticalEdge,
     stepLTurn: StepLTurnEdge,
-    straight: StraightHorizontalEdge
+    straight: StraightEdge,
+    step: OrthogonalStepEdge
 };
 
 function OrganogramaContent() {
+    const { user } = useAuth();
     const [treeData, setTreeData] = useState([]);
+
     const [allNodesFlat, setAllNodesFlat] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -61,6 +68,7 @@ function OrganogramaContent() {
     const [showHelp, setShowHelp] = useState(false); // Fecha ajuda por padrão em apresentações
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [isUserMgmtOpen, setIsUserMgmtOpen] = useState(false);
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     
     // Estados do Modo Edição e Drawer Editor
     const [isEditMode, setIsEditMode] = useState(false);
@@ -113,11 +121,20 @@ function OrganogramaContent() {
     }, []);
 
     // Hook customizado que gerencia o estado dos nós visuais
-    const { nodes, edges, onNodesChange, onEdgesChange } = useOrganograma(
+    const { 
+        nodes, 
+        edges, 
+        onNodesChange, 
+        onEdgesChange, 
+        expandAll, 
+        collapseAll, 
+        focusNode 
+    } = useOrganograma(
         treeData, 
         handleNodeClick,
         isEditMode,
-        handleEditNode
+        handleEditNode,
+        allNodesFlat
     );
 
     if (isLoading) {
@@ -151,6 +168,9 @@ function OrganogramaContent() {
                         onToggleEditMode={() => setIsEditMode(!isEditMode)}
                         onOpenCreateDrawer={() => handleOpenCreateDrawer(null)}
                         onOpenUserMgmt={() => setIsUserMgmtOpen(true)}
+                        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+                        allNodesFlat={allNodesFlat}
+                        onFocusNode={focusNode}
                     />
 
                     {/* Canvas Principal do React Flow */}
@@ -182,6 +202,8 @@ function OrganogramaContent() {
                             onToggleDarkMode={toggleDarkMode}
                             isCanvasLocked={isCanvasLocked}
                             onToggleCanvasLock={() => setIsCanvasLocked(!isCanvasLocked)}
+                            onExpandAll={expandAll}
+                            onCollapseAll={collapseAll}
                         />
 
                         {/* 3. Botão Flutuante de Ajuda no Canto Inferior Direito */}
@@ -221,6 +243,20 @@ function OrganogramaContent() {
                 onClose={() => setIsUserMgmtOpen(false)}
                 allNodesFlat={allNodesFlat}
             />
+
+            <FirstPasswordModal
+                isOpen={Boolean(user && (user.primeiro_acesso === true || user.primeiro_acesso === 1))}
+                isFirstAccess={true}
+            />
+
+            <FirstPasswordModal
+                isOpen={isChangePasswordOpen}
+                onClose={() => setIsChangePasswordOpen(false)}
+                isFirstAccess={false}
+            />
+
+            <TermsModal />
+
 
             <NodeDrawerEditor
                 isOpen={isDrawerOpen}

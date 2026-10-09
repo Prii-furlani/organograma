@@ -1,12 +1,12 @@
 /**
  * Cabeçalho Arquitetural: Componente Painel Lateral de Edição (Drawer / CRUD Form).
  * Permite criar, editar, excluir e reparentear qualquer área do organograma.
- * Integra alertas executivos SweetAlert2 via alerts.js (zero native alerts/confirms).
+ * Refinado com campos ordenados de 1 a 7, telefone com máscara, e pré-visualização ao vivo.
  * Zero CSS inline: estilizado exclusivamente via classes em organograma.css (Light & Dark).
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Save, Plus, Trash2, ArrowLeft, Loader2, AlertTriangle, ShieldCheck, Building2, Eye, Search } from 'lucide-react';
+import { X, Save, Trash2, Loader2, AlertTriangle, Building2, Search, Mail, Phone, User, ChevronDown, Check } from 'lucide-react';
 import { updateNode, createNode, deleteNode, fetchNiveisHierarquicos } from '../api/organogramaApi';
 import { confirmDeleteNode, confirmUnsavedChanges, showToast } from '../utils/alerts';
 
@@ -15,6 +15,12 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
 
     const [niveis, setNiveis] = useState([]);
     const [parentSearchQuery, setParentSearchQuery] = useState('');
+    const [levelSearchQuery, setLevelSearchQuery] = useState('');
+    const [isLevelDropdownOpen, setIsLevelDropdownOpen] = useState(false);
+    const [isParentDropdownOpen, setIsParentDropdownOpen] = useState(false);
+
+    const levelDropdownRef = useRef(null);
+    const parentDropdownRef = useRef(null);
 
     const [formData, setFormData] = useState({
         parent_id: null,
@@ -23,6 +29,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
         tipo: 'equipe',
         responsavel: '',
         email_contato: '',
+        telefone: '',
         descricao: '',
         ordem: 0
     });
@@ -31,6 +38,47 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState(null);
+
+    // Fechar os dropdowns customizados ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (levelDropdownRef.current && !levelDropdownRef.current.contains(e.target)) {
+                setIsLevelDropdownOpen(false);
+            }
+            if (parentDropdownRef.current && !parentDropdownRef.current.contains(e.target)) {
+                setIsParentDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Fechar dropdowns com a tecla ESC
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (isLevelDropdownOpen) setIsLevelDropdownOpen(false);
+                if (isParentDropdownOpen) setIsParentDropdownOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isLevelDropdownOpen, isParentDropdownOpen]);
+
+    // Máscara utilitária para telefone brasileiro
+    const formatPhone = (val) => {
+        if (!val) return '';
+        const digits = val.replace(/\D/g, '').slice(0, 11);
+        if (digits.length <= 2) return digits ? `(${digits}` : '';
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    };
+
+    const handlePhoneChange = (e) => {
+        const formatted = formatPhone(e.target.value);
+        setFormData(prev => ({ ...prev, telefone: formatted }));
+    };
 
     // Verifica se o formulário teve edições não salvas
     const isDirty = useMemo(() => {
@@ -76,6 +124,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
         if (!isOpen) return;
 
         setParentSearchQuery('');
+        setLevelSearchQuery('');
 
         let initialData;
         if (parentNodeForCreate) {
@@ -86,6 +135,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                 tipo: 'equipe',
                 responsavel: '',
                 email_contato: '',
+                telefone: '',
                 descricao: '',
                 ordem: 0
             };
@@ -97,6 +147,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                 tipo: nodeData.tipo || 'equipe',
                 responsavel: nodeData.responsavel || '',
                 email_contato: nodeData.email_contato || '',
+                telefone: nodeData.telefone || '',
                 descricao: nodeData.descricao || '',
                 ordem: nodeData.ordem !== undefined ? nodeData.ordem : 0
             };
@@ -108,6 +159,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                 tipo: 'equipe',
                 responsavel: '',
                 email_contato: '',
+                telefone: '',
                 descricao: '',
                 ordem: 0
             };
@@ -146,7 +198,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
         const buildTree = (parentId, depth = 0) => {
             const children = allNodesFlat.filter(n => n.parent_id === parentId);
             children.forEach(child => {
-                const indent = depth > 0 ? `${'  '.repeat(depth)}↳ ` : '';
+                const indent = depth > 0 ? `${'  '.repeat(depth)}↳ ` : '';
                 options.push({
                     id: child.id,
                     titulo: child.titulo,
@@ -168,13 +220,63 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
         return options;
     }, [allNodesFlat, parentSearchQuery]);
 
+    // Lista garantida de níveis hierárquicos institucionais
+    const niveisList = useMemo(() => {
+        if (niveis && niveis.length > 0) return niveis;
+        return [
+            { id: 1, slug: 'ceo', nome: 'Co-CEOs' },
+            { id: 2, slug: 'staff', nome: 'Staff' },
+            { id: 10, slug: 'oia', nome: 'OIA / Assessoria' },
+            { id: 3, slug: 'diretoria', nome: 'Diretoria' },
+            { id: 4, slug: 'coordenacao', nome: 'Coordenação' },
+            { id: 5, slug: 'gerencia', nome: 'Gerência' },
+            { id: 8, slug: 'unidade', nome: 'Unidade de Negócios' },
+            { id: 6, slug: 'apoio', nome: 'Apoio' },
+            { id: 7, slug: 'equipe', nome: 'Equipe' },
+            { id: 9, slug: 'contrato', nome: 'Contrato' }
+        ];
+    }, [niveis]);
+
+    // Mapeamento de subtítulos de hierarquia para os níveis
+    const levelSubtitles = useMemo(() => ({
+        ceo: 'Direção Executiva',
+        staff: 'Assessoria & Planejamento',
+        oia: 'Órgão de Inspeção & Auditoria',
+        diretoria: 'Direção Estratégica',
+        coordenacao: 'Gestão Operacional & Tática',
+        gerencia: 'Gestão de Unidade',
+        unidade: 'Operação & Projetos',
+        apoio: 'Suporte Operacional',
+        equipe: 'Execução Técnica',
+        contrato: 'Prestação de Serviços'
+    }), []);
+
+    // Lista filtrada de níveis hierárquicos pela busca interna
+    const filteredNiveis = useMemo(() => {
+        if (!levelSearchQuery || !levelSearchQuery.trim()) return niveisList;
+        const q = levelSearchQuery.trim().toLowerCase();
+        return niveisList.filter(n => {
+            const titleMatch = n.nome.toLowerCase().includes(q);
+            const sub = n.subtitulo || levelSubtitles[n.slug] || '';
+            const subMatch = sub.toLowerCase().includes(q);
+            return titleMatch || subMatch;
+        });
+    }, [niveisList, levelSearchQuery, levelSubtitles]);
+
+    // Obtém o nó pai selecionado para exibição no trigger do Combobox
+    const selectedParentNode = useMemo(() => {
+        if (formData.parent_id === null || formData.parent_id === undefined) return null;
+        return allNodesFlat?.find(n => n.id === formData.parent_id);
+    }, [allNodesFlat, formData.parent_id]);
+
     // Obtém os dados do nível selecionado para a pré-visualização ao vivo
     const currentNivel = useMemo(() => {
-        return niveis.find(n => n.id === formData.nivel_id) || {
-            nome: formData.tipo,
+        return niveisList.find(n => n.id === formData.nivel_id) || {
+            nome: formData.tipo || 'Equipe',
+            slug: formData.tipo || 'equipe',
             classe_css: 'level-subordinado'
         };
-    }, [niveis, formData.nivel_id, formData.tipo]);
+    }, [niveisList, formData.nivel_id, formData.tipo]);
 
     if (!isOpen) return null;
 
@@ -183,7 +285,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
         e.preventDefault();
 
         if (!formData.titulo || formData.titulo.trim() === '') {
-            setErrorMsg('O Nome da Área / Setor é um campo obrigatório.');
+            setErrorMsg('O Nome da Área é um campo obrigatório.');
             return;
         }
 
@@ -198,6 +300,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
             parent_id: formData.parent_id,
             responsavel: formData.responsavel ? formData.responsavel.trim() : null,
             email_contato: formData.email_contato ? formData.email_contato.trim() : null,
+            telefone: formData.telefone ? formData.telefone.trim() : null,
             descricao: formData.descricao ? formData.descricao.trim() : null,
             ordem: formData.ordem || 0
         };
@@ -215,7 +318,7 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
             if (onRefreshTree) await onRefreshTree();
         } catch (err) {
             console.error('Erro ao salvar nó:', err);
-            const errText = err.response?.data?.error || 'Erro ao processar alteração no nó.';
+            const errText = err.response?.data?.error || 'Erro ao processar alteração na área.';
             setErrorMsg(errText);
             showToast(errText, 'error');
         } finally {
@@ -252,23 +355,26 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
     return (
         <div className="drawer-overlay drawer-open" onClick={(e) => { if (e.target === e.currentTarget) handleSafeClose(); }}>
             <div className="drawer-content">
-                {/* Header do Drawer */}
-                <div className={`drawer-header bg-theme-${formData.tipo || 'default'}`}>
-                    <div className="drawer-title-group">
-                        <Building2 size={24} />
-                        <div>
-                            <h2 className="drawer-main-title">
+                {/* Header Minimalista Executivo do Drawer */}
+                <div className="drawer-header-executive">
+                    <div className="drawer-header-left">
+                        <div className="drawer-header-icon-squircle">
+                            <Building2 className="drawer-header-building-icon" />
+                        </div>
+                        <div className="drawer-header-text-group">
+                            <span className="drawer-header-top-label">ESTRUTURA ORGANIZACIONAL</span>
+                            <h2 className="drawer-header-main-title">
                                 {isCreateMode ? 'Criar Nova Área' : 'Editar Área'}
                             </h2>
                             {!isCreateMode && nodeData && (
-                                <span className="drawer-subtitle">
+                                <span className="drawer-header-subtitle">
                                     ID: #{nodeData.id} • {nodeData.titulo}
                                 </span>
                             )}
                         </div>
                     </div>
-                    <button onClick={handleSafeClose} className="modal-close-btn" title="Fechar editor (Esc)">
-                        <X size={20} />
+                    <button onClick={handleSafeClose} className="drawer-close-squircle" title="Fechar editor (Esc)">
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -280,115 +386,205 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                     </div>
                 )}
 
-                {/* Formulário Principal */}
+                {/* Formulário Principal com Rótulos Limpos */}
                 <form onSubmit={handleSubmit} className="drawer-body-form">
                     
-                    {/* Área Superior Imediata (Parent Node) com Busca */}
+                    {/* Nome da Área * */}
                     <div className="drawer-form-group">
                         <label className="drawer-label required">
-                            Área Superior Imediata (Nó Pai)
-                        </label>
-
-                        <div className="drawer-search-wrapper">
-                            <Search size={14} className="drawer-search-icon" />
-                            <input
-                                type="text"
-                                value={parentSearchQuery}
-                                onChange={(e) => setParentSearchQuery(e.target.value)}
-                                placeholder="Filtrar áreas superiores..."
-                                className="drawer-search-input"
-                            />
-                        </div>
-
-                        <select
-                            value={formData.parent_id !== null && formData.parent_id !== undefined ? formData.parent_id : ''}
-                            onChange={(e) => setFormData({ ...formData, parent_id: e.target.value ? parseInt(e.target.value, 10) : null })}
-                            className="drawer-select"
-                        >
-                            <option value="">Nenhum (Nó Raiz / Co-CEOs)</option>
-                            {formattedTreeOptions.map((opt) => {
-                                const isDisabled = disabledParentIds.has(opt.id);
-                                return (
-                                    <option 
-                                        key={opt.id} 
-                                        value={opt.id}
-                                        disabled={isDisabled}
-                                    >
-                                        {isDisabled ? `[Inválido/Descendente] ${opt.label}` : `${opt.label} (${opt.nivel_nome})`}
-                                    </option>
-                                );
-                            })}
-                        </select>
-                        <span className="drawer-help-text">
-                            Visualização em árvore identada. Altera a posição hierárquica no organograma.
-                        </span>
-                    </div>
-
-                    {/* Nome da Área */}
-                    <div className="drawer-form-group">
-                        <label className="drawer-label required">
-                            Título / Nome da Área
+                            Nome da Área
                         </label>
                         <input
                             type="text"
                             required
                             value={formData.titulo}
                             onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                            placeholder="Ex: Diretoria de Inovação, Licitação"
+                            placeholder="ex: SGI, Planejamento Estratégico, Desenvolvimento"
                             className="drawer-input"
                         />
                     </div>
 
-                    {/* Nível Hierárquico e Ordem */}
-                    <div className="drawer-form-row">
-                        <div className="drawer-form-group flex-1">
-                            <label className="drawer-label required">
-                                Nível Hierárquico (Estilo & Classe)
-                            </label>
-                            <select
-                                value={formData.nivel_id || ''}
-                                onChange={(e) => {
-                                    const selectedId = parseInt(e.target.value, 10);
-                                    const selectedNivel = niveis.find(n => n.id === selectedId);
-                                    setFormData({ 
-                                        ...formData, 
-                                        nivel_id: selectedId,
-                                        tipo: selectedNivel ? selectedNivel.slug : formData.tipo
-                                    });
-                                }}
-                                className="drawer-select"
-                                required
+                    {/* Nível Hierárquico * (Searchable Combobox com Badges de Cores) */}
+                    <div className="drawer-form-group" ref={levelDropdownRef}>
+                        <label className="drawer-label required">
+                            Nível Hierárquico
+                        </label>
+                        <div className="jhe-combobox-container">
+                            <button
+                                type="button"
+                                className={`jhe-combobox-trigger ${isLevelDropdownOpen ? 'is-open' : ''}`}
+                                onClick={() => setIsLevelDropdownOpen(!isLevelDropdownOpen)}
+                                aria-expanded={isLevelDropdownOpen}
+                                aria-label="Selecione o nível hierárquico"
                             >
-                                {niveis && niveis.length > 0 ? (
-                                    niveis.map(n => (
-                                        <option key={n.id} value={n.id}>
-                                            {n.nome} ({n.classe_css})
-                                        </option>
-                                    ))
-                                ) : (
-                                    <>
-                                        <option value="1">Co-CEOs</option>
-                                        <option value="2">Staff</option>
-                                        <option value="3">Diretoria</option>
-                                        <option value="4">Coordenação</option>
-                                        <option value="5">Gerência</option>
-                                        <option value="6">Apoio</option>
-                                        <option value="7">Equipe</option>
-                                    </>
-                                )}
-                            </select>
-                        </div>
+                                <div className="jhe-combobox-trigger-content">
+                                    <span className={`jhe-combobox-badge slug-badge-${currentNivel.slug || 'equipe'}`} />
+                                    <span className="jhe-combobox-trigger-label">
+                                        {currentNivel.nome || 'Selecione um nível'}
+                                    </span>
+                                </div>
+                                <ChevronDown size={16} className="jhe-combobox-chevron" />
+                            </button>
 
-                        <div className="drawer-form-group w-28">
-                            <label className="drawer-label">
-                                Ordem (X)
-                            </label>
-                            <input
-                                type="number"
-                                value={formData.ordem}
-                                onChange={(e) => setFormData({ ...formData, ordem: parseInt(e.target.value, 10) || 0 })}
-                                className="drawer-input"
-                            />
+                            {isLevelDropdownOpen && (
+                                <div className="jhe-combobox-popover" role="listbox">
+                                    <div className="jhe-combobox-search-wrapper">
+                                        <Search size={14} className="jhe-combobox-search-icon" />
+                                        <input
+                                            type="text"
+                                            value={levelSearchQuery}
+                                            onChange={(e) => setLevelSearchQuery(e.target.value)}
+                                            placeholder="Buscar nível hierárquico..."
+                                            className="jhe-combobox-search-input"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="jhe-combobox-list">
+                                        {filteredNiveis && filteredNiveis.length > 0 ? (
+                                            filteredNiveis.map(n => {
+                                                const isSelected = formData.nivel_id === n.id;
+                                                const subtitle = n.subtitulo || levelSubtitles[n.slug] || 'Nível Operacional';
+                                                return (
+                                                    <div
+                                                        key={n.id}
+                                                        role="option"
+                                                        aria-selected={isSelected}
+                                                        className={`jhe-combobox-item ${isSelected ? 'active' : ''}`}
+                                                        onClick={() => {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                nivel_id: n.id,
+                                                                tipo: n.slug || prev.tipo
+                                                            }));
+                                                            setIsLevelDropdownOpen(false);
+                                                            setLevelSearchQuery('');
+                                                        }}
+                                                    >
+                                                        <div className="jhe-combobox-item-content">
+                                                            <span className={`jhe-combobox-badge slug-badge-${n.slug || 'equipe'}`} />
+                                                            <div className="jhe-combobox-item-text">
+                                                                <span className="jhe-combobox-item-title">{n.nome}</span>
+                                                                <span className="jhe-combobox-item-subtitle">{subtitle}</span>
+                                                            </div>
+                                                        </div>
+                                                        {isSelected && <Check size={14} className="jhe-combobox-check" />}
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="jhe-combobox-empty">
+                                                Nenhum nível hierárquico encontrado
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <span className="drawer-help-text">
+                            A cor é definida no cadastro de níveis hierárquicos.
+                        </span>
+                    </div>
+
+                    {/* Área Superior Imediata (Pai) - Searchable Combobox Unificado */}
+                    <div className="drawer-form-group" ref={parentDropdownRef}>
+                        <label className="drawer-label">
+                            Área Superior Imediata (Pai)
+                        </label>
+                        <div className="jhe-combobox-container">
+                            <button
+                                type="button"
+                                className={`jhe-combobox-trigger ${isParentDropdownOpen ? 'is-open' : ''}`}
+                                onClick={() => setIsParentDropdownOpen(!isParentDropdownOpen)}
+                                aria-expanded={isParentDropdownOpen}
+                                aria-label="Selecione a área superior"
+                            >
+                                <div className="jhe-combobox-trigger-content">
+                                    <Building2 size={16} className="jhe-combobox-trigger-icon" />
+                                    <span className="jhe-combobox-trigger-label">
+                                        {selectedParentNode ? selectedParentNode.titulo : 'Nenhuma (Área Raiz / Topo)'}
+                                    </span>
+                                </div>
+                                <ChevronDown size={16} className="jhe-combobox-chevron" />
+                            </button>
+
+                            {isParentDropdownOpen && (
+                                <div className="jhe-combobox-popover" role="listbox">
+                                    <div className="jhe-combobox-search-wrapper">
+                                        <Search size={14} className="jhe-combobox-search-icon" />
+                                        <input
+                                            type="text"
+                                            value={parentSearchQuery}
+                                            onChange={(e) => setParentSearchQuery(e.target.value)}
+                                            placeholder="Buscar na estrutura..."
+                                            className="jhe-combobox-search-input"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    <div className="jhe-combobox-list">
+                                        {/* Opção para Nó Raiz (Sem Pai) */}
+                                        <div
+                                            role="option"
+                                            aria-selected={formData.parent_id === null}
+                                            className={`jhe-combobox-item jhe-combobox-root-option ${formData.parent_id === null ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setFormData(prev => ({ ...prev, parent_id: null }));
+                                                setIsParentDropdownOpen(false);
+                                                setParentSearchQuery('');
+                                            }}
+                                        >
+                                            <div className="jhe-combobox-item-content">
+                                                <Building2 size={15} className="jhe-combobox-trigger-icon" />
+                                                <div className="jhe-combobox-item-text">
+                                                    <span className="jhe-combobox-item-title">Nenhuma (Área Raiz / Topo)</span>
+                                                    <span className="jhe-combobox-item-subtitle">Sem subordinação hierárquica</span>
+                                                </div>
+                                            </div>
+                                            {formData.parent_id === null && <Check size={14} className="jhe-combobox-check" />}
+                                        </div>
+
+                                        {/* Lista Hierárquica em Árvore */}
+                                        {formattedTreeOptions && formattedTreeOptions.length > 0 ? (
+                                            formattedTreeOptions.map((opt) => {
+                                                const isDisabled = disabledParentIds.has(opt.id);
+                                                const isSelected = formData.parent_id === opt.id;
+                                                const depthClass = `depth-${Math.min(opt.depth, 5)}`;
+                                                return (
+                                                    <div
+                                                        key={opt.id}
+                                                        role="option"
+                                                        aria-selected={isSelected}
+                                                        aria-disabled={isDisabled}
+                                                        className={`jhe-combobox-item ${depthClass} ${isSelected ? 'active' : ''} ${isDisabled ? 'is-disabled' : ''}`}
+                                                        onClick={() => {
+                                                            if (isDisabled) return;
+                                                            setFormData(prev => ({ ...prev, parent_id: opt.id }));
+                                                            setIsParentDropdownOpen(false);
+                                                            setParentSearchQuery('');
+                                                        }}
+                                                    >
+                                                        <div className="jhe-combobox-item-content">
+                                                            {opt.depth > 0 && <span className="jhe-combobox-tree-branch">↳</span>}
+                                                            <div className="jhe-combobox-item-text">
+                                                                <span className="jhe-combobox-item-title">
+                                                                    {opt.titulo} {isDisabled && <span className="jhe-combobox-item-subtitle">(Inválido / Descendente)</span>}
+                                                                </span>
+                                                                <span className="jhe-combobox-item-subtitle">{opt.nivel_nome}</span>
+                                                            </div>
+                                                        </div>
+                                                        {isSelected && <Check size={14} className="jhe-combobox-check" />}
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="jhe-combobox-empty">
+                                                Nenhuma área encontrada
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -401,61 +597,86 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                             type="text"
                             value={formData.responsavel}
                             onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-                            placeholder="Ex: Dra. Juliana, Leandro Neves"
+                            placeholder="ex: Dr. Hélio, Leandro Furlani"
                             className="drawer-input"
                         />
                     </div>
 
-                    {/* E-mail de Contato */}
+                    {/* E-mail Institucional */}
                     <div className="drawer-form-group">
                         <label className="drawer-label">
-                            E-mail de Contato
+                            E-mail Institucional
                         </label>
-                        <input
-                            type="email"
-                            value={formData.email_contato}
-                            onChange={(e) => setFormData({ ...formData, email_contato: e.target.value })}
-                            placeholder="setor@jhe.com.br"
-                            className="drawer-input"
-                        />
+                        <div className="drawer-input-icon-group">
+                            <Mail size={16} className="drawer-icon-inside" />
+                            <input
+                                type="email"
+                                value={formData.email_contato}
+                                onChange={(e) => setFormData({ ...formData, email_contato: e.target.value })}
+                                placeholder="ex: setor@jhe.com.br"
+                                className="drawer-input drawer-input-with-icon"
+                            />
+                        </div>
                     </div>
 
-                    {/* Descrição e Atribuições */}
+                    {/* Telefone Institucional com Máscara */}
                     <div className="drawer-form-group">
                         <label className="drawer-label">
-                            Descrição e Atribuições do Setor
+                            Telefone Institucional
+                        </label>
+                        <div className="drawer-input-icon-group">
+                            <Phone size={16} className="drawer-icon-inside" />
+                            <input
+                                type="text"
+                                value={formData.telefone}
+                                onChange={handlePhoneChange}
+                                placeholder="(11) 99999-9999"
+                                className="drawer-input drawer-input-with-icon"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Atribuições / Descrição */}
+                    <div className="drawer-form-group">
+                        <label className="drawer-label">
+                            Atribuições / Descrição
                         </label>
                         <textarea
                             value={formData.descricao}
                             onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                            placeholder="Descreva as principais funções e responsabilidades deste setor..."
+                            placeholder="Resumo das atividades e responsabilidades do setor..."
                             rows={3}
                             className="drawer-textarea"
                         />
                     </div>
 
-                    {/* Pré-visualização Dinâmica do Card (Live Preview) */}
-                    <div className="drawer-form-group">
-                        <label className="drawer-label flex items-center gap-1">
-                            <Eye size={14} className="text-primary-lighter" />
-                            Pré-visualização Dinâmica do Card
-                        </label>
-                        <div className="drawer-preview-container">
-                            <div className={`preview-card-item ${currentNivel.classe_css || 'level-subordinado'}`}>
-                                <div className="preview-card-header">
-                                    <Building2 size={18} />
-                                    <span className="preview-card-title">
-                                        {formData.titulo.trim() || 'Nome da Área'}
-                                    </span>
+                    {/* Pré-visualização do Card em Tempo Real */}
+                    <div className="drawer-preview-box">
+                        <div className="drawer-preview-header">
+                            <span className="drawer-preview-title">PRÉ-VISUALIZAÇÃO DO CARD</span>
+                            <span className="drawer-preview-status">Atualização em tempo real</span>
+                        </div>
+                        <div className="drawer-preview-canvas">
+                            <div className="jhe-live-preview-card">
+                                <div className={`preview-top-border slug-accent-${currentNivel.slug || 'equipe'}`} />
+                                <div className="preview-card-body">
+                                    <div className="preview-avatar-circle">
+                                        <User className="preview-avatar-icon" />
+                                    </div>
+                                    <div className="preview-card-info">
+                                        <div className="preview-line-title">
+                                            {formData.titulo.trim() || 'Nome da nova área'}
+                                        </div>
+                                        <div className="preview-line-level">
+                                            {currentNivel.nome ? currentNivel.nome.toUpperCase() : (formData.tipo || 'EQUIPE').toUpperCase()}
+                                        </div>
+                                        {formData.responsavel && formData.responsavel.trim() !== '' && (
+                                            <div className="preview-line-responsavel">
+                                                {formData.responsavel.trim()}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <span className="preview-card-badge">
-                                    {currentNivel.nome || 'Nível'}
-                                </span>
-                                {formData.responsavel && (
-                                    <span className="preview-card-responsavel">
-                                        Líder: {formData.responsavel}
-                                    </span>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -489,12 +710,12 @@ function NodeDrawerEditor({ isOpen, nodeData, parentNodeForCreate, allNodesFlat,
                             {isSubmitting ? (
                                 <>
                                     <Loader2 size={16} className="animate-spin" />
-                                    Salvando...
+                                    {isCreateMode ? 'Criando área...' : 'Salvando...'}
                                 </>
                             ) : (
                                 <>
                                     <Save size={16} />
-                                    {isCreateMode ? 'Criar Área' : 'Salvar Alterações'}
+                                    {isCreateMode ? 'Criar área' : 'Salvar alterações'}
                                 </>
                             )}
                         </button>

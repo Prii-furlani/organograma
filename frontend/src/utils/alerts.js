@@ -84,6 +84,101 @@ export async function confirmDeleteNode(nodeName, childrenCount = 0) {
 }
 
 /**
+ * Modal SweetAlert2 corporativo para exclusão em cascata com trava de segurança de digitação ('EXCLUIR').
+ * @param {string} nodeName - Nome da área a ser excluída
+ * @param {number} affectedCount - Total de setores subordinados que serão afetados
+ * @returns {Promise<boolean>} Resolvido como true se o usuário digitou EXCLUIR e confirmou
+ */
+export async function confirmCascadeDeleteNode(nodeName, affectedCount) {
+    const result = await JheSwal.fire({
+        title: 'Atenção: Exclusão Estrutural em Cascata',
+        html: `
+            <div class="jhe-cascade-modal-body">
+                <div class="jhe-cascade-warning-text">
+                    A exclusão de <strong>${nodeName || 'este setor'}</strong> removerá permanentemente esta área e todos os seus <strong>${affectedCount} setores subordinados</strong>.
+                </div>
+                <div class="jhe-cascade-instruction">
+                    Para autorizar esta operação, digite <span class="jhe-cascade-keyword">EXCLUIR</span> no campo abaixo:
+                </div>
+            </div>
+        `,
+        input: 'text',
+        inputPlaceholder: 'Digite EXCLUIR',
+        inputAttributes: {
+            autocapitalize: 'characters',
+            autocomplete: 'off',
+            spellcheck: 'false',
+            class: 'jhe-swal-cascade-input'
+        },
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, excluir estrutura',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        focusCancel: true,
+        didOpen: () => {
+            const confirmBtn = Swal.getConfirmButton();
+            const input = Swal.getInput();
+            if (confirmBtn && input) {
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('is-disabled');
+
+                input.addEventListener('input', (e) => {
+                    const text = e.target.value.trim();
+                    if (text === 'EXCLUIR') {
+                        confirmBtn.disabled = false;
+                        confirmBtn.classList.remove('is-disabled');
+                    } else {
+                        confirmBtn.disabled = true;
+                        confirmBtn.classList.add('is-disabled');
+                    }
+                });
+            }
+        },
+        preConfirm: (inputValue) => {
+            if (inputValue !== 'EXCLUIR') {
+                Swal.showValidationMessage('Você deve digitar exatamente a palavra EXCLUIR para confirmar.');
+                return false;
+            }
+            return true;
+        }
+    });
+
+    return result.isConfirmed;
+}
+
+/**
+ * Modal SweetAlert2 de Confirmação de Transferência Hierárquica (Drag & Drop com subordinados).
+ * @param {string} nodeName - Nome da área a ser movida
+ * @param {number} affectedCount - Total de subordinados
+ * @param {string} targetParentName - Nome da nova área superior (pai)
+ * @returns {Promise<boolean>} Resolvido como true se o usuário confirmou
+ */
+export async function confirmHierarchyTransfer(nodeName, affectedCount, targetParentName) {
+    const result = await JheSwal.fire({
+        title: 'Confirmar Transferência de Setor?',
+        html: `
+            <div class="jhe-transfer-modal-body">
+                <p class="jhe-transfer-text">
+                    Deseja mover a área <strong>${nodeName || 'Selecionada'}</strong> e seus <strong>${affectedCount}</strong> subordinados para baixo de <strong>${targetParentName || 'Nova Área'}</strong>?
+                </p>
+                <div class="jhe-transfer-note">
+                    A subordinação de todos os nós descendentes será reorganizada hierarquicamente.
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar Transferência',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true,
+        focusCancel: true
+    });
+
+    return result.isConfirmed;
+}
+
+/**
  * Modal para confirmação de descarte de edições não salvas
  * @returns {Promise<boolean>} Resolvido como true se o usuário quer descartar e sair
  */
@@ -142,4 +237,24 @@ export async function confirmToggleUserStatus(userName, newStatus) {
     return result.isConfirmed;
 }
 
+/**
+ * Modal de confirmação de reset de senha de usuário para a provisória Jhe@2026
+ * @param {string} userName - Nome do colaborador
+ * @returns {Promise<boolean>}
+ */
+export async function confirmResetUserPassword(userName) {
+    const result = await JheSwal.fire({
+        title: 'Resetar Senha de Usuário?',
+        html: `Resetar senha do usuário <strong>"${userName}"</strong> para o padrão <strong>Jhe@2026</strong>?<br/><br/><small style="color: #64748B;">O usuário será forçado a redefinir a senha no próximo login.</small>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, resetar senha',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    });
+
+    return result.isConfirmed;
+}
+
 export default JheSwal;
+

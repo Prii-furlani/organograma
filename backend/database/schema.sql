@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS `organograma_nos` (
   `responsavel` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Nome da pessoa líder, diretor ou gestor responsável',
   `lideres_json` JSON NULL DEFAULT NULL COMMENT 'Lista estruturada de líderes (usada em Co-CEOs para nomes e fotos)',
   `email_contato` VARCHAR(150) NULL DEFAULT NULL COMMENT 'E-mail corporativo do setor ou responsável',
+  `telefone` VARCHAR(50) NULL DEFAULT NULL COMMENT 'Telefone corporativo ou institucional do setor',
   `descricao` TEXT NULL COMMENT 'Texto explicativo exibido no modal/tooltip sobre as atribuições do setor',
   `icone` VARCHAR(50) NULL DEFAULT 'users' COMMENT 'Identificador do ícone Lucide para o card',
   `ordem` INT NOT NULL DEFAULT 0 COMMENT 'Posição horizontal de exibição em relação aos irmãos',
@@ -208,10 +209,34 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `email` VARCHAR(191) NOT NULL UNIQUE COMMENT 'E-mail corporativo único para login',
   `senha_hash` VARCHAR(255) NOT NULL COMMENT 'Hash da senha criptografada com bcrypt',
   `role_global` ENUM('admin', 'diretor', 'coordenador', 'colaborador') NOT NULL DEFAULT 'colaborador' COMMENT 'Papel global do usuário',
+  `primeiro_acesso` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = precisa redefinir senha no login',
+  `termo_aceite_versao` VARCHAR(20) NULL DEFAULT NULL COMMENT 'Versão dos Termos de Serviço aceitos',
+  `termo_aceite_em` DATETIME NULL DEFAULT NULL COMMENT 'Data e hora do aceite dos termos',
   `ativo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Flag de status: 1 = ativo, 0 = inativo',
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
   `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data de última modificação'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabela de usuários cadastrados';
+
+-- =============================================================================
+-- TABELA: termos_servico
+-- O QUE FAZ: Armazena o Termo de Aceite / Termos de Serviço vigentes.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `termos_servico` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único do termo',
+  `titulo` VARCHAR(255) NOT NULL DEFAULT 'Termos de Serviço' COMMENT 'Título principal do modal',
+  `subtitulo` VARCHAR(255) NOT NULL DEFAULT 'Revise os termos antes de aceitar o acordo.' COMMENT 'Subtítulo institucional',
+  `conteudo` LONGTEXT NOT NULL COMMENT 'Texto completo dos Termos de Serviço',
+  `versao` VARCHAR(20) NOT NULL DEFAULT '1.0' COMMENT 'Versão do documento (ex: 1.0, 1.1, 2.0)',
+  `ativo` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1 = termo ativo vigente, 0 = histórico',
+  `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
+  `atualizado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data de última atualização'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabela de Termos de Serviço e Aceite Dinâmico';
+
+-- Seed do Termo de Serviço Vigente Padrão JHE Engenharia
+INSERT INTO `termos_servico` (`id`, `titulo`, `subtitulo`, `conteudo`, `versao`, `ativo`) VALUES
+(1, 'Termos de Serviço', 'Revise os termos antes de aceitar o acordo.', 'Bem-vindo aos Termos de Serviço da JHE Engenharia.\n\n1. USO DA PLATAFORMA\nA plataforma de Organograma Corporativo da JHE Engenharia destina-se ao gerenciamento de setores, cargos e permissões institucionais. As informações contidas nesta aplicação são de caráter confidencial e restritas aos colaboradores autorizados.\n\n2. RESPONSABILIDADES DO USUÁRIO\nO usuário compromete-se a manter a confidencialidade de suas credenciais de acesso, não compartilhando sua senha com terceiros. Qualquer alteração realizada na estrutura organizacional através do seu perfil será registrada e auditada.\n\n3. PRIVACIDADE E PROTEÇÃO DE DADOS (LGPD)\nOs dados pessoais fornecidos (nome, e-mail corporativo e cargo) são utilizados exclusivamente para fins de autenticação, atribuição de responsabilidades e controle de acesso RBAC no sistema.\n\n4. PROPRIEDADE INTELECTUAL\nToda a estrutura visual, código-fonte e elementos gráficos da plataforma pertencem à JHE Engenharia. É vedada a reprodução total ou parcial sem autorização prévia por escrito.\n\n5. MODIFICAÇÕES DOS TERMOS\nA JHE Engenharia reserva-se o direito de atualizar estes termos periodicamente. As alterações entrarão em vigor após a publicação da nova versão na plataforma.', '1.0', 1)
+ON DUPLICATE KEY UPDATE `titulo` = VALUES(`titulo`), `subtitulo` = VALUES(`subtitulo`), `conteudo` = VALUES(`conteudo`), `versao` = VALUES(`versao`);
+
 
 -- =============================================================================
 -- TABELA: usuario_cargos_nos (Relacionamento N:N)
@@ -233,10 +258,11 @@ CREATE TABLE IF NOT EXISTS `usuario_cargos_nos` (
 -- Admin (admin@jhe.com.br / Admin@123 ou admin123)
 -- Leandro (leandro@jhe.com.br / leandro123)
 -- =============================================================================
-INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `senha_hash`, `role_global`, `ativo`) VALUES
-(1, 'Administrador do Sistema', 'admin@jhe.com.br', '$2b$10$pxt8joEGxJONEhDmsGzDeuaIW0DaTz8p2eQ3Pz98oqd4pOXZDlSZm', 'admin', 1),
-(2, 'Leandro Furlani', 'leandro@jhe.com.br', '$2b$10$HrGPsO1lw4K46M9UVnXMmu8DdUXVuSY8UW8obS809ecXZ0V7uTkQO', 'diretor', 1)
-ON DUPLICATE KEY UPDATE `nome_completo` = VALUES(`nome_completo`), `senha_hash` = VALUES(`senha_hash`), `role_global` = VALUES(`role_global`);
+INSERT INTO `usuarios` (`id`, `nome_completo`, `email`, `senha_hash`, `role_global`, `primeiro_acesso`, `ativo`) VALUES
+(1, 'Administrador do Sistema', 'admin@jhe.com.br', '$2b$10$Ep64l/dYVj1Jc.KjG.k4v.O8kO.YhIqYqX0K4t9oH3vBqA9C5P8aK', 'admin', 0, 1),
+(2, 'Leandro Furlani', 'leandro@jhe.com.br', '$2b$10$HrGPsO1lw4K46M9UVnXMmu8DdUXVuSY8UW8obS809ecXZ0V7uTkQO', 'diretor', 0, 1)
+ON DUPLICATE KEY UPDATE `nome_completo` = VALUES(`nome_completo`), `senha_hash` = VALUES(`senha_hash`), `role_global` = VALUES(`role_global`), `primeiro_acesso` = VALUES(`primeiro_acesso`);
+
 
 INSERT INTO `usuario_cargos_nos` (`usuario_id`, `no_id`, `papel_no_cargo`) VALUES
 (2, 120, 'Titular'),

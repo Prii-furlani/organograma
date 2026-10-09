@@ -12,7 +12,7 @@ const bcrypt = require('bcryptjs');
 async function getAllUsers(req, res) {
     try {
         const [users] = await pool.query(`
-            SELECT id, nome_completo, email, role_global, ativo, created_at 
+            SELECT id, nome_completo, email, role_global, primeiro_acesso, ativo, created_at 
             FROM usuarios 
             ORDER BY nome_completo ASC
         `);
@@ -25,6 +25,7 @@ async function getAllUsers(req, res) {
 
         users.forEach(u => {
             u.cargos = cargos.filter(c => c.usuario_id === u.id);
+            u.primeiro_acesso = u.primeiro_acesso === 1;
         });
 
         res.json(users);
@@ -35,19 +36,16 @@ async function getAllUsers(req, res) {
 }
 
 /**
- * Cadastra um novo colaborador no sistema.
+ * Cadastra um novo colaborador no sistema (senha provisória padrão Jhe@2026 com primeiro_acesso = 1).
  */
 async function createUser(req, res) {
-    const { nome_completo, email, senha, role_global, nos_ids, no_ids } = req.body;
+    const { nome_completo, email, role_global, nos_ids, no_ids } = req.body;
 
     if (!nome_completo || !nome_completo.trim()) {
         return res.status(400).json({ error: 'O Nome Completo é um campo obrigatório.' });
     }
     if (!email || !email.trim()) {
         return res.status(400).json({ error: 'O E-mail Institucional é um campo obrigatório.' });
-    }
-    if (!senha || senha.trim().length < 4) {
-        return res.status(400).json({ error: 'A senha inicial deve conter pelo menos 4 caracteres.' });
     }
     if (!role_global) {
         return res.status(400).json({ error: 'O Perfil Base é um campo obrigatório.' });
@@ -62,12 +60,13 @@ async function createUser(req, res) {
             return res.status(400).json({ error: 'Já existe um usuário cadastrado com este e-mail.' });
         }
 
-        // Hash seguro da senha com bcrypt
-        const senha_hash = await bcrypt.hash(senha.trim(), 10);
+        // Senha inicial fixa padrão: 'Jhe@2026' com hash bcrypt e primeiro_acesso = 1
+        const rawPassword = 'Jhe@2026';
+        const senha_hash = await bcrypt.hash(rawPassword, 10);
 
-        // Insere o usuário na tabela usuarios
+        // Insere o usuário na tabela usuarios com primeiro_acesso = 1 e ativo = 1
         const [result] = await pool.query(
-            'INSERT INTO usuarios (nome_completo, email, senha_hash, role_global, ativo) VALUES (?, ?, ?, ?, 1)',
+            'INSERT INTO usuarios (nome_completo, email, senha_hash, role_global, primeiro_acesso, ativo) VALUES (?, ?, ?, ?, 1, 1)',
             [nome_completo.trim(), cleanEmail, senha_hash, role_global]
         );
 
@@ -87,7 +86,10 @@ async function createUser(req, res) {
             }
         }
 
-        res.status(201).json({ message: 'Usuário cadastrado com sucesso.', id: newUserId });
+        res.status(201).json({ 
+            message: 'Usuário cadastrado com sucesso. Senha provisória: Jhe@2026', 
+            id: newUserId 
+        });
     } catch (error) {
         console.error('Erro ao criar usuário:', error);
         res.status(500).json({ error: 'Erro interno ao cadastrar novo usuário.' });
@@ -148,7 +150,33 @@ async function updateUser(req, res) {
 }
 
 /**
- * Remove ou desativa um usuário do sistema.
+ * Reseta a senha do usuário para o padrão Jhe@2026 com troca obrigatória no próximo acesso.
+ */
+async function resetUserPassword(req, res) {
+    const { id } = req.params;
+    const userId = parseInt(id, 10);
+
+    try {
+        const [users] = await pool.query('SELECT id FROM usuarios WHERE id = ?', [userId]);
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
+        }
+
+        const defaultHash = await bcrypt.hash('Jhe@2026', 10);
+        await pool.query(
+            'UPDATE usuarios SET senha_hash = ?, primeiro_acesso = 1 WHERE id = ?',
+            [defaultHash, userId]
+        );
+
+        res.json({ message: 'Senha resetada com sucesso para o padrão Jhe@2026.' });
+    } catch (error) {
+        console.error('Erro ao resetar senha do usuário:', error);
+        res.status(500).json({ error: 'Erro interno ao resetar senha do usuário.' });
+    }
+}
+
+/**
+ * Remove um usuário do sistema.
  */
 async function deleteUser(req, res) {
     const { id } = req.params;
@@ -170,5 +198,6 @@ module.exports = {
     getAllUsers,
     createUser,
     updateUser,
+    resetUserPassword,
     deleteUser
 };

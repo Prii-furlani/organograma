@@ -49,21 +49,22 @@ function optionalAuthToken(req, res, next) {
 /**
  * Obtém todos os IDs de nós que o usuário tem permissão para gerenciar (sub-árvore descendente).
  * - 'admin': Retorna 'all' (permissão total em todos os nós)
- * - 'diretor' / 'coordenador': Retorna array com os IDs dos nós vinculados e TODOS os seus descendentes
+ * - 'diretor' / 'coordenador' / etc: Retorna array com os IDs dos nós vinculados e TODOS os seus descendentes
  * - 'colaborador': Retorna [] (sem permissão de edição)
  */
 async function getUserPermittedNodeIds(userId, roleGlobal) {
-    if (roleGlobal === 'admin') {
-        return 'all'; // Permissão total
+    const role = String(roleGlobal || '').toUpperCase();
+    if (role === 'ADMIN') {
+        return 'all'; // Permissão total sobre qualquer nó
     }
 
-    if (roleGlobal === 'colaborador') {
+    if (role === 'COLABORADOR') {
         return [];
     }
 
     // Busca os nós diretamente vinculados ao usuário em usuario_cargos_nos
     const [cargos] = await pool.query('SELECT no_id FROM usuario_cargos_nos WHERE usuario_id = ?', [userId]);
-    const rootNodeIds = cargos.map(c => c.no_id);
+    const rootNodeIds = cargos.map(c => c.no_id).filter(Boolean);
 
     if (rootNodeIds.length === 0) {
         return [];
@@ -91,43 +92,101 @@ async function getUserPermittedNodeIds(userId, roleGlobal) {
 }
 
 /**
- * Middleware para verificar se o usuário autenticado tem permissão para editar um nó específico.
+ * Middleware checkScopePermission:
+ * Antes de executar qualquer rota de alteração (POST, PUT, PATCH, DELETE em /api/organograma/nos),
+ * verifica recursivamente se o nó alvo descende de uma das áreas vinculadas ao req.user.
+ * Caso contrário, retorna status 403 Forbidden ("Você não tem permissão para alterar setores fora da sua diretoria").
  */
-async function checkNodeEditPermission(req, res, next) {
+async function checkScopePermission(req, res, next) {
     if (!req.user) {
-        return res.status(401).json({ error: 'Acesso não autorizado.' });
+        return res.status(401).json({ error: 'Acesso não autorizado. Faça login para continuar.' });
     }
 
-    if (req.user.role_global === 'admin') {
-        return next(); // Admin pode tudo
-    }
-
-    const targetNodeId = parseInt(req.params.id || req.body.parent_id, 10);
-    if (!targetNodeId) {
-        return next(); // Caso seja uma operação genérica sem ID de nó específico
+    const role = String(req.user.role_global || '').toUpperCase();
+    if (role === 'ADMIN') {
+        return next(); // ADMIN possui permissão total sobre qualquer nó
     }
 
     try {
         const permittedNodeIds = await getUserPermittedNodeIds(req.user.id, req.user.role_global);
-        
-        if (permittedNodeIds === 'all' || (Array.isArray(permittedNodeIds) && permittedNodeIds.includes(targetNodeId))) {
+
+        if (permittedNodeIds === 'all') {
             return next();
         }
 
-        return res.status(403).json({ 
-            error: 'Acesso negado: você não possui permissão hierárquica para editar este setor ou seus subordinados.' 
-        });
+        const isPermitted = (id) => {
+            if (!id) return false;
+            return Array.isArray(permittedNodeIds) && permittedNodeIds.includes(parseInt(id, 10));
+        };
+
+        // Rota POST (criação): deve validar se parent_id pertence ao escopo
+        if (req.method === 'POST') {
+            const parentId = req.body.parent_id !== undefined && req.body.parent_id !== null && req.body.parent_id !== '' 
+                ? parseInt(req.body.parent_id, 10) 
+                : null;
+
+            // Criar nó raiz sem pai só é permitido para ADMIN
+            if (!parentId || !isPermitted(parentId)) {
+                return res.status(403).json({ 
+                    error: 'Você não tem permissão para alterar setores fora da sua diretoria' 
+                });
+            }
+
+            return next();
+        }
+
+        // Rota PUT / PATCH (edição ou transferência de nó)
+        if (req.method === 'PUT' || req.method === 'PATCH') {
+            const targetId = parseInt(req.params.id, 10);
+            if (!targetId || !isPermitted(targetId)) {
+                return res.status(403).json({ 
+                    error: 'Você não tem permissão para alterar setores fora da sua diretoria' 
+                });
+            }
+
+            // Se estiver alterando ou movendo para um novo parent_id
+            if (req.body.parent_id !== undefined && req.body.parent_id !== null && req.body.parent_id !== '') {
+                const newParentId = parseInt(req.body.parent_id, 10);
+                if (!isPermitted(newParentId)) {
+                    return res.status(403).json({ 
+                        error: 'Você não tem permissão para alterar setores fora da sua diretoria' 
+                    });
+                }
+            }
+
+            return next();
+        }
+
+        // Rota DELETE (exclusão de nó)
+        if (req.method === 'DELETE') {
+            const targetId = parseInt(req.params.id, 10);
+            if (!targetId || !isPermitted(targetId)) {
+                return res.status(403).json({ 
+                    error: 'Você não tem permissão para alterar setores fora da sua diretoria' 
+                });
+            }
+
+            return next();
+        }
+
+        return next();
     } catch (error) {
-        console.error('Erro ao verificar permissão de sub-árvore:', error);
+        console.error('Erro ao verificar permissão de escopo hierárquico:', error);
         return res.status(500).json({ error: 'Erro interno ao validar permissões hierárquicas.' });
     }
 }
 
 /**
+ * Alias mantido para compatibilidade com código existente.
+ */
+const checkNodeEditPermission = checkScopePermission;
+
+/**
  * Middleware para verificar se o usuário autenticado possui perfil de Administrador global.
  */
 function checkAdminRole(req, res, next) {
-    if (!req.user || req.user.role_global !== 'admin') {
+    const role = String(req.user?.role_global || '').toUpperCase();
+    if (!req.user || role !== 'ADMIN') {
         return res.status(403).json({ error: 'Acesso negado: funcionalidade restrita a administradores do sistema.' });
     }
     next();
@@ -138,6 +197,7 @@ module.exports = {
     authenticateToken,
     optionalAuthToken,
     getUserPermittedNodeIds,
+    checkScopePermission,
     checkNodeEditPermission,
     checkAdminRole
 };

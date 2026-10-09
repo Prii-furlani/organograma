@@ -1,24 +1,27 @@
 /**
  * Cabeçalho Arquitetural: Modal Elegante de Autenticação / Login (RBAC).
  * Permite que administradores, diretores e coordenadores façam login com credenciais seguras.
- * Suporta atalhos demonstrativos e tratamento de erros e carregamento.
+ * Suporta salvamento automático de senhas em navegadores (Google Chrome/Edge), alternador de visualização de senha e 'Lembre-se de mim'.
  * Zero CSS inline: utiliza classes do organograma.css com suporte completo a Dark Mode.
  */
 
 import React, { useState } from 'react';
-import { X, Mail, Lock, LogIn, Loader2, ShieldCheck, UserCheck } from 'lucide-react';
+import { X, Mail, Lock, LogIn, Loader2, ShieldCheck, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 function LoginModal({ isOpen, onClose }) {
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
+    const [showSenha, setShowSenha] = useState(false);
+    const [rememberMe, setRememberMe] = useState(true);
+
     const { login, isLoading, loginError } = useAuth();
 
     if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const success = await login(email, senha);
+        const success = await login(email, senha, rememberMe);
         if (success) {
             setEmail('');
             setSenha('');
@@ -40,7 +43,7 @@ function LoginModal({ isOpen, onClose }) {
                         <ShieldCheck size={26} className="login-header-icon" />
                         <h2>Autenticação de Usuário</h2>
                     </div>
-                    <button onClick={onClose} className="modal-close-btn" title="Fechar modal">
+                    <button onClick={onClose} type="button" className="modal-close-btn" title="Fechar modal">
                         <X size={20} />
                     </button>
                 </div>
@@ -57,14 +60,18 @@ function LoginModal({ isOpen, onClose }) {
                     </div>
                 )}
 
-                {/* Formulário */}
+                {/* Formulário Estruturado para Salvamento Automático do Navegador */}
                 <form onSubmit={handleSubmit} className="login-form">
+                    {/* Campo de E-mail */}
                     <div className="login-field">
-                        <label className="login-label">
+                        <label htmlFor="login-email" className="login-label">
                             <Mail size={16} /> E-mail Corporativo
                         </label>
                         <input
+                            id="login-email"
+                            name="email"
                             type="email"
+                            autoComplete="username"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -73,18 +80,45 @@ function LoginModal({ isOpen, onClose }) {
                         />
                     </div>
 
+                    {/* Campo de Senha com Olho Alternador */}
                     <div className="login-field">
-                        <label className="login-label">
+                        <label htmlFor="login-password" className="login-label">
                             <Lock size={16} /> Senha de Acesso
                         </label>
-                        <input
-                            type="password"
-                            required
-                            value={senha}
-                            onChange={(e) => setSenha(e.target.value)}
-                            placeholder="••••••••"
-                            className="login-input"
-                        />
+                        <div className="login-input-wrapper">
+                            <input
+                                id="login-password"
+                                name="password"
+                                type={showSenha ? 'text' : 'password'}
+                                autoComplete="current-password"
+                                required
+                                value={senha}
+                                onChange={(e) => setSenha(e.target.value)}
+                                placeholder="••••••••"
+                                className="login-input"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowSenha(!showSenha)}
+                                className="login-password-toggle-btn"
+                                title={showSenha ? "Ocultar senha" : "Exibir senha"}
+                            >
+                                {showSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Checkbox Lembre-se de mim */}
+                    <div className="login-remember-field">
+                        <label className="login-checkbox-label">
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="login-checkbox-input"
+                            />
+                            <span>Manter conectado neste dispositivo (Lembre-se de mim)</span>
+                        </label>
                     </div>
 
                     {/* Atalhos Rápidos para Demonstração */}
@@ -93,7 +127,7 @@ function LoginModal({ isOpen, onClose }) {
                         <div className="demo-buttons-group">
                             <button
                                 type="button"
-                                onClick={() => handleFillDemo('admin@jhe.com.br', 'admin123')}
+                                onClick={() => handleFillDemo('admin@jhe.com.br', 'Admin@123')}
                                 className="demo-btn admin-demo-btn"
                             >
                                 <UserCheck size={14} /> Admin Geral

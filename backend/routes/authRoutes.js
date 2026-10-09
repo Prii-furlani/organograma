@@ -20,4 +20,12 @@ router.post('/login', authController.login);
  */
 router.get('/me', authenticateToken, authController.getMe);
 
+/**
+ * @route POST /api/auth/definir-primeira-senha
+ * @route POST /api/auth/primeiro-acesso
+ * @description Redefine a senha provisória de primeiro acesso do usuário logado.
+ */
+router.post('/definir-primeira-senha', authenticateToken, authController.definirPrimeiraSenha);
+router.post('/primeiro-acesso', authenticateToken, authController.definirPrimeiraSenha);
+
 module.exports = router;

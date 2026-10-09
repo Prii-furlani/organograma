@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Search, Plus, User, Edit3, Trash2, ChevronDown, ChevronRight, GripVertical, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Search, Plus, User, Edit3, Trash2, ChevronDown, ChevronRight, GripVertical, AlertCircle, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Swal from 'sweetalert2';
-import { deleteNode } from '../api/organogramaApi';
-import ConfirmMoveModal from './ConfirmMoveModal';
+import { deleteNode, moveNode } from '../api/organogramaApi';
+import { confirmCascadeDeleteNode, confirmDeleteNode, confirmHierarchyTransfer, showToast } from '../utils/alerts';
 
 const TopicItem = ({ 
     node, 
@@ -14,10 +14,12 @@ const TopicItem = ({
     searchQuery,
     onMoveRequest
 }) => {
+    const { hasPermissionToEdit } = useAuth();
     const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
 
     const hasChildren = node.children && node.children.length > 0;
+    const canEdit = hasPermissionToEdit ? hasPermissionToEdit(node.id) : false;
 
     // Calcula contagens
     const diretos = hasChildren ? node.children.length : 0;
@@ -49,11 +51,16 @@ const TopicItem = ({
     if (!isVisible) return null;
 
     const handleDragStart = (e) => {
+        if (!canEdit) {
+            e.preventDefault();
+            return;
+        }
         e.dataTransfer.setData('text/plain', node.id);
         e.stopPropagation();
     };
 
     const handleDragOver = (e) => {
+        if (!canEdit) return;
         e.preventDefault();
         setIsDragOver(true);
         e.stopPropagation();
@@ -69,92 +76,148 @@ const TopicItem = ({
         setIsDragOver(false);
         e.stopPropagation();
         
+        if (!canEdit) {
+            Swal.fire({
+                title: 'Acesso negado',
+                text: 'Você não tem permissão para alterar setores fora da sua diretoria.',
+                icon: 'warning',
+                confirmButtonText: 'Entendido'
+            });
+            return;
+        }
+
         const draggedId = e.dataTransfer.getData('text/plain');
         if (!draggedId || draggedId === String(node.id)) return;
 
         onMoveRequest(draggedId, node);
     };
 
-    const handleDelete = () => {
-        Swal.fire({
-            title: 'Excluir área?',
-            text: `A área "${node.titulo}" e todos os seus subordinados serão excluídos permanentemente.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#cbd5e1',
-            confirmButtonText: 'Sim, excluir'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    await deleteNode(node.id);
-                    onRefreshTree();
-                    Swal.fire('Excluído!', 'A área foi removida.', 'success');
-                } catch (error) {
-                    Swal.fire('Erro', 'Não foi possível excluir a área.', 'error');
-                }
+    const handleDelete = async () => {
+        if (!canEdit) {
+            Swal.fire({
+                title: 'Acesso negado',
+                text: 'Você não tem permissão para alterar setores fora da sua diretoria.',
+                icon: 'warning',
+                confirmButtonText: 'Entendido'
+            });
+            return;
+        }
+
+        let totalSubordinados = 0;
+        const countSubordinados = (n) => {
+            if (n.children && n.children.length > 0) {
+                totalSubordinados += n.children.length;
+                n.children.forEach(countSubordinados);
             }
-        });
+        };
+        countSubordinados(node);
+
+        let confirmed = false;
+        if (totalSubordinados > 0) {
+            confirmed = await confirmCascadeDeleteNode(node.titulo, totalSubordinados);
+        } else {
+            confirmed = await confirmDeleteNode(node.titulo, 0);
+        }
+
+        if (confirmed) {
+            try {
+                await deleteNode(node.id);
+                await onRefreshTree();
+                showToast(`A área "${node.titulo}" foi removida com sucesso.`, 'success');
+            } catch (error) {
+                console.error('Erro ao deletar área:', error);
+                const errorMsg = error.response?.data?.error || 'Não foi possível excluir a área.';
+                Swal.fire('Erro na exclusão', errorMsg, 'error');
+            }
+        }
     };
 
     return (
-        <div className="flex flex-col w-full">
+        <div className="topic-item-wrapper">
+            {/* Linha Principal do Tópico (3 Colunas) */}
             <div 
-                className={`flex items-center py-3 px-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${isDragOver ? 'bg-blue-50 border-blue-300' : ''}`}
-                draggable
+                className={`topic-row-bar ${isDragOver ? 'is-drag-over' : ''} ${!canEdit ? 'is-scope-locked' : ''}`}
+                draggable={canEdit}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                {/* Linhas de indentação visual e seta */}
-                <div className="flex items-center self-stretch">
-                    {Array.from({ length: level }).map((_, i) => (
-                        <div key={i} className="w-10 flex-shrink-0 border-l border-gray-200 h-full min-h-[48px]"></div>
-                    ))}
+                {/* Coluna 1: Informações e Indentação (Flex 1) */}
+                <div className="topic-col-info">
+                    {/* Linhas de indentação visual */}
+                    <div className="topic-indent-group">
+                        {Array.from({ length: level }).map((_, i) => (
+                            <div key={i} className="topic-indent-guide" />
+                        ))}
+                    </div>
+
+                    {/* Seta de expansão */}
+                    <div className="topic-chevron-box" onClick={() => setIsExpanded(!isExpanded)}>
+                        {hasChildren ? (
+                            isExpanded ? <ChevronDown size={16} className="topic-chevron-icon" /> : <ChevronRight size={16} className="topic-chevron-icon" />
+                        ) : (
+                            <div className="w-4" />
+                        )}
+                    </div>
+
+                    {/* Squircle do Avatar */}
+                    <div className="topic-avatar-squircle">
+                        <User className="topic-avatar-icon" />
+                    </div>
+
+                    {/* Textos com Alto Contraste */}
+                    <div className="topic-text-group">
+                        <div className="flex items-center gap-2">
+                            <span className="topic-title">{node.titulo}</span>
+                            {!canEdit && (
+                                <span className="topic-scope-lock-badge" title="Fora do seu escopo de edição">
+                                    <ShieldAlert size={12} />
+                                    Somente leitura
+                                </span>
+                            )}
+                        </div>
+                        <span className="topic-subtitle">{node.descricao || node.tipo || 'Área'}</span>
+                        <span className="topic-category">{node.tipo}</span>
+                    </div>
                 </div>
 
-                <div className="w-6 flex items-center justify-center mr-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                    {hasChildren ? (
-                        isExpanded ? <ChevronDown size={16} className="text-gray-500" /> : <ChevronRight size={16} className="text-gray-500" />
-                    ) : (
-                        <div className="w-4"></div>
-                    )}
-                </div>
-
-                {/* Ícone */}
-                <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center text-blue-900 mr-4 flex-shrink-0 cursor-grab active:cursor-grabbing">
-                    <User size={18} />
-                </div>
-
-                {/* Textos */}
-                <div className="flex flex-col flex-1 min-w-0">
-                    <span className="text-sm font-bold text-gray-900 truncate">{node.titulo}</span>
-                    <span className="text-xs font-semibold text-amber-700 truncate uppercase mt-0.5">{node.descricao || node.tipo || 'Área'}</span>
-                    <span className="text-[10px] text-gray-500 truncate mt-0.5 capitalize">{node.tipo}</span>
-                </div>
-
-                {/* Coluna Subordinados */}
-                <div className="w-48 flex items-center text-xs text-gray-500 font-medium">
+                {/* Coluna 2: Subordinados (Fixa 180px) */}
+                <div className="topic-col-subordinates">
                     <User size={12} className="mr-1.5" />
                     {diretos} diretos • {abaixo} abaixo
                 </div>
 
-                {/* Ações */}
-                <div className="w-32 flex items-center justify-end gap-3 text-gray-400">
-                    <button onClick={() => onOpenCreateDrawer(node)} className="hover:text-blue-600 transition-colors" title="Adicionar Subordinado">
+                {/* Coluna 3: Ações (Fixa 120px) */}
+                <div className="topic-col-actions">
+                    <button 
+                        onClick={() => canEdit && onOpenCreateDrawer(node)} 
+                        className={`topic-action-btn ${!canEdit ? 'is-disabled' : ''}`} 
+                        disabled={!canEdit}
+                        title={canEdit ? "Adicionar Subordinado" : "Sem permissão para adicionar subordinados neste setor"}
+                    >
                         <Plus size={16} />
                     </button>
-                    <button onClick={() => onEditNode(node)} className="hover:text-blue-600 transition-colors" title="Editar">
+                    <button 
+                        onClick={() => canEdit && onEditNode(node)} 
+                        className={`topic-action-btn ${!canEdit ? 'is-disabled' : ''}`} 
+                        disabled={!canEdit}
+                        title={canEdit ? "Editar" : "Sem permissão para editar este setor"}
+                    >
                         <Edit3 size={16} />
                     </button>
-                    <button onClick={handleDelete} className="hover:text-red-600 transition-colors" title="Excluir">
+                    <button 
+                        onClick={() => canEdit && handleDelete()} 
+                        className={`topic-action-btn topic-delete-btn ${!canEdit ? 'is-disabled' : ''}`} 
+                        disabled={!canEdit}
+                        title={canEdit ? "Excluir" : "Sem permissão para excluir este setor"}
+                    >
                         <Trash2 size={16} />
                     </button>
                 </div>
             </div>
 
-            {/* Filhos renderizados recursivamente */}
+            {/* Filhos renderizados recursivamente (Flex Column) */}
             {hasChildren && isExpanded && (
                 <div className="flex flex-col w-full relative">
                     {node.children.map(child => (
@@ -173,6 +236,8 @@ const TopicItem = ({
             )}
         </div>
     );
+};
+
 // Helper function to find a node by ID in tree
 const findNodeInTree = (nodes, id) => {
     for (const node of nodes) {
@@ -196,17 +261,39 @@ const isDescendant = (rootNode, childId) => {
 };
 
 function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefreshTree }) {
-    const { user } = useAuth();
+    const { user, hasPermissionToEdit } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Estados do Modal de Mover
-    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-    const [moveDraggedNode, setMoveDraggedNode] = useState(null);
-    const [moveTargetNode, setMoveTargetNode] = useState(null);
-
-    const handleMoveRequest = (draggedId, targetNode) => {
+    const handleMoveRequest = async (draggedId, targetNode) => {
         const draggedNode = findNodeInTree(treeData, draggedId);
         if (!draggedNode) return;
+
+        // Validação de permissão de escopo no nó arrastado
+        if (!hasPermissionToEdit(draggedNode.id)) {
+            Swal.fire({
+                title: 'Acesso negado',
+                text: 'Você não tem permissão para alterar setores fora da sua diretoria.',
+                icon: 'warning',
+                confirmButtonText: 'Entendido'
+            });
+            return;
+        }
+
+        // Validação de permissão de escopo no nó de destino
+        if (!hasPermissionToEdit(targetNode.id)) {
+            Swal.fire({
+                title: 'Acesso negado',
+                text: 'Você não tem permissão para transferir setores para fora da sua diretoria.',
+                icon: 'warning',
+                confirmButtonText: 'Entendido'
+            });
+            return;
+        }
+
+        // Validação: não mover para si mesmo
+        if (String(draggedNode.id) === String(targetNode.id)) {
+            return;
+        }
 
         // Validação: Bloquear mover para a própria subárvore
         if (isDescendant(draggedNode, targetNode.id)) {
@@ -214,47 +301,84 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
             return;
         }
 
-        // Tudo certo, abre o modal
-        setMoveDraggedNode(draggedNode);
-        setMoveTargetNode(targetNode);
-        setIsMoveModalOpen(true);
+        // Conta subordinados do nó arrastado
+        let subCount = 0;
+        const countSubs = (n) => {
+            if (n.children && n.children.length > 0) {
+                subCount += n.children.length;
+                n.children.forEach(countSubs);
+            }
+        };
+        countSubs(draggedNode);
+
+        if (subCount > 0) {
+            const confirmed = await confirmHierarchyTransfer(draggedNode.titulo, subCount, targetNode.titulo);
+            if (!confirmed) {
+                // Usuário cancelou: reverte e mantém na árvore original
+                return;
+            }
+        }
+
+        try {
+            await moveNode(draggedNode.id, targetNode.id);
+            await onRefreshTree();
+            showToast(`Área "${draggedNode.titulo}" transferida com sucesso.`, 'success');
+        } catch (error) {
+            console.error('Erro ao transferir setor:', error);
+            const errorMsg = error.response?.data?.error || 'Não foi possível transferir o setor.';
+            Swal.fire('Erro na transferência', errorMsg, 'error');
+        }
+    };
+
+    const handleCreateNewRoot = () => {
+        const role = String(user?.role_global || '').toUpperCase();
+        if (role !== 'ADMIN') {
+            Swal.fire({
+                title: 'Acesso restrito',
+                text: 'Apenas Administradores podem criar tópicos raiz. Para criar um setor subordinado à sua área, clique no botão (+) ao lado da sua diretoria ou coordenação.',
+                icon: 'info',
+                confirmButtonText: 'Entendido'
+            });
+            return;
+        }
+        onOpenCreateDrawer(null);
     };
 
     return (
-        <div className="absolute inset-0 bg-[#F8FAFC] flex flex-col z-50 overflow-hidden">
+        <div className="topic-editor-container">
             {/* Top Navbar */}
-            <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+            <header className="topic-editor-navbar">
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={onClose} 
-                        className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+                        className="w-10 h-10 rounded-xl border border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                         title="Voltar ao organograma"
                     >
                         <ArrowLeft size={18} />
                     </button>
-                    <div className="w-10 h-10 rounded-xl bg-[#0F2C4A] flex items-center justify-center text-white">
+                    <div className="w-10 h-10 rounded-xl bg-[#0F2C4A] dark:bg-[#12284C] flex items-center justify-center text-white dark:text-[#61CBE8]">
                         <GripVertical size={18} />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-amber-700 tracking-wider uppercase">Administração da Estrutura</span>
-                        <span className="text-lg font-bold text-[#0F2C4A] leading-tight">Editor em tópicos</span>
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-[#EDB580] tracking-wider uppercase">Administração da Estrutura</span>
+                        <span className="text-lg font-bold text-[#0F2C4A] dark:text-white leading-tight">Editor em tópicos</span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-6">
                     <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
                         <input 
                             type="text" 
                             placeholder="Localizar um tópico..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-72 h-10 pl-9 pr-4 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                            className="w-72 h-10 pl-9 pr-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                         />
                     </div>
                     <button 
-                        onClick={() => onOpenCreateDrawer(null)}
-                        className="h-10 px-5 bg-[#0F2C4A] hover:bg-[#194775] text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors shadow-md"
+                        onClick={handleCreateNewRoot}
+                        className="h-10 px-5 bg-[#0F2C4A] hover:bg-[#194775] dark:bg-[#61CBE8] dark:hover:bg-white dark:text-[#020931] text-white text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors shadow-md"
                     >
                         <Plus size={16} />
                         Novo tópico
@@ -263,30 +387,32 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
             </header>
 
             {/* Sub header info */}
-            <div className="bg-[#FFFDF9] border-b border-amber-100 px-6 py-2 flex items-center justify-between text-xs text-amber-900 shrink-0">
+            <div className="topic-editor-info-bar">
                 <div className="flex items-center gap-2 font-medium">
-                    <AlertCircle size={14} className="text-amber-600" />
+                    <AlertCircle size={14} className="text-amber-600 dark:text-amber-400" />
                     <strong>{user?.nome_completo}</strong> - {user?.role_global?.toUpperCase()}
-                    <span className="text-amber-300 mx-2">|</span>
-                    <span className="text-amber-700/80">Arraste um tópico sobre outro para alterar sua área superior.</span>
+                    <span className="text-amber-300 dark:text-amber-600 mx-2">|</span>
+                    <span>Arraste um tópico sobre outro para alterar sua área superior.</span>
                 </div>
-                <div className="flex items-center gap-2 text-amber-700/80">
+                <div className="flex items-center gap-2 opacity-80">
                     <span className="flex items-center justify-center w-4 h-4 rounded-full border border-amber-300 text-[10px]">?</span>
                     Use as setas para expandir ou recolher os níveis
                 </div>
             </div>
 
-            {/* Tabela Header */}
-            <div className="flex-1 overflow-auto p-8 flex justify-center">
-                <div className="w-full max-w-6xl bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+            {/* Container da Tabela com Scroll Interno */}
+            <main className="topic-editor-main-area">
+                <div className="topic-editor-card">
                     
-                    <div className="flex items-center px-4 py-4 border-b border-gray-100 bg-white sticky top-0 z-10 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    {/* Cabeçalho FIXO da Tabela (Coerente com as 3 colunas) */}
+                    <div className="topic-table-header">
                         <div className="flex-1 pl-14">Estrutura e Hierarquia</div>
-                        <div className="w-48">Subordinados</div>
-                        <div className="w-32 text-right pr-6">Ações</div>
+                        <div className="w-[180px] flex-shrink-0">Subordinados</div>
+                        <div className="w-[120px] flex-shrink-0 text-right pr-6">Ações</div>
                     </div>
 
-                    <div className="flex flex-col pb-4">
+                    {/* Corpo Scrollável da Lista */}
+                    <div className="topic-table-body">
                         {treeData.map(node => (
                             <TopicItem 
                                 key={node.id} 
@@ -301,21 +427,13 @@ function TopicEditor({ treeData, onClose, onOpenCreateDrawer, onEditNode, onRefr
                         ))}
                         
                         {treeData.length === 0 && (
-                            <div className="p-8 text-center text-gray-500 text-sm">
+                            <div className="p-8 text-center text-gray-500 dark:text-slate-400 text-sm">
                                 Nenhuma área encontrada no organograma.
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
-
-            <ConfirmMoveModal 
-                isOpen={isMoveModalOpen}
-                onClose={() => setIsMoveModalOpen(false)}
-                draggedNode={moveDraggedNode}
-                targetNode={moveTargetNode}
-                onRefreshTree={onRefreshTree}
-            />
+            </main>
         </div>
     );
 }

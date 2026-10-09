@@ -10,6 +10,7 @@ const cors = require('cors');
 const organogramaRoutes = require('./routes/organogramaRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const termosRoutes = require('./routes/termosRoutes');
 const { initDatabaseSchema } = require('./database/initDb');
 
 const app = express();
@@ -23,6 +24,8 @@ app.use(express.json()); // Habilita o parse de JSON no corpo das requisições
 app.use('/api/organograma', organogramaRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', userRoutes);
+app.use('/api/termos', termosRoutes);
+
 
 // Tratamento para rotas não encontradas
 app.use((req, res, next) => {

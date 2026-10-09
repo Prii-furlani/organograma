@@ -13,29 +13,31 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNodesState, useEdgesState, useReactFlow } from '@xyflow/react';
 
-// Constantes de Layout e Espaçamento
-const NODE_WIDTH = 250;       // Largura base do card de Diretoria/OIA em px
-const NODE_HEIGHT = 150;      // Altura base do card de Diretoria/OIA em px
-const RANK_SEP = 72;          // Espaçamento vertical constante de 52px entre cards (respiração visual ampla)
-const MIN_GAP = 200;           // Espaçamento horizontal mínimo de 50px entre diretorias
-const OFFSET_COL = 270;       // Offset horizontal para colunas bipolares e contratos
+// Constantes de Layout e Espaçamento Executivo
+const NODE_WIDTH = 250;               // Largura padrão do card (px)
+const CARD_BASE_HEIGHT = 94;          // Altura base do card sem pílula (px)
+const PILL_HEIGHT_EXT = 16;           // Extensão inferior da pílula de contagem (px)
+const EFFECTIVE_NODE_HEIGHT = 110;    // Altura efetiva total do card com pílula (94 + 16 = 110px)
+const EFFECTIVE_CEO_HEIGHT = 136;     // Altura efetiva do Co-CEOs com pílula (120 + 16 = 136px)
+const VERTICAL_GAP = 38;              // Gap vertical mínimo obrigatório entre a pílula e o card seguinte (38px)
+const STEP_Y = EFFECTIVE_NODE_HEIGHT + VERTICAL_GAP; // 148px (passo vertical padrão de topo a topo)
+const MIN_GAP = 50;                   // Espaçamento horizontal uniforme entre diretorias (50px)
+const OFFSET_COL = 270;               // Offset horizontal para colunas bipolares e contratos (270px)
+
+// Aliases globais para compatibilidade interna do layout engine
+const NODE_HEIGHT = EFFECTIVE_NODE_HEIGHT;
+const RANK_SEP = VERTICAL_GAP;
 
 const getNodeWidth = (node) => {
-    if (!node) return 200;
-    if (node.tipo === 'ceo') return 230;
-    if (node.tipo === 'diretoria' || node.tipo === 'oia' || node.id === 12) return 220;
-    if (node.tipo === 'staff') return 205;
-    if (node.tipo === 'gerencia' || node.tipo === 'coordenacao' || node.tipo === 'unidade') return 200;
-    return 175;
+    if (!node) return NODE_WIDTH;
+    if (node.tipo === 'ceo') return 290;
+    return NODE_WIDTH;
 };
 
 const getNodeHeight = (node) => {
-    if (!node) return 96;
-    if (node.tipo === 'ceo') return 110;
-    if (node.tipo === 'diretoria' || node.tipo === 'oia' || node.id === 12) return 105;
-    if (node.tipo === 'staff') return 98;
-    if (node.tipo === 'gerencia' || node.tipo === 'coordenacao' || node.tipo === 'unidade') return 96;
-    return 86;
+    if (!node) return EFFECTIVE_NODE_HEIGHT;
+    if (node.tipo === 'ceo') return EFFECTIVE_CEO_HEIGHT;
+    return EFFECTIVE_NODE_HEIGHT;
 };
 
 // Mapeamento das hastes do Staff por Nível Vertical (tronco central)
@@ -73,18 +75,20 @@ const UNIDADES_OPERACAOE_IDS = [45, 50, 55, 60, 65, 70];
 // IDs das Gerências da Diretoria de Tecnologia e Inovação (120)
 const GERENCIASI_TI_IDS = [121, 123, 125, 128];
 
-export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onEditNode = null) {
+export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onEditNode = null, allNodesFlat = []) {
     const { hasPermissionToEdit } = useAuth();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [collapsedNodes, setCollapsedNodes] = useState(new Set());
+    const [highlightedNodeId, setHighlightedNodeId] = useState(null);
     const initialized = useRef(false);
 
     // Controle de UX e Câmera/Viewport
     const hasDoneInitialFitView = useRef(false);
     const lastToggledNodeId = useRef(null);
 
-    const { fitView, setCenter, getViewport } = useReactFlow();
+    const { fitView, setCenter, getViewport, getNodes } = useReactFlow();
+
 
     // Função para recolher recursivamente os subordinados
     const collapseRecursively = useCallback((nodeId, nextSet) => {
@@ -394,6 +398,7 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
             const hasChildren = nodeData.children && nodeData.children.length > 0;
             const childrenCount = hasChildren ? nodeData.children.length : 0;
             const canEdit = hasPermissionToEdit ? hasPermissionToEdit(nodeData.id) : false;
+            const isHighlighted = highlightedNodeId !== null && String(nodeData.id) === String(highlightedNodeId);
 
             newNodes.push({
                 id: strId,
@@ -406,6 +411,7 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                     childrenCount,
                     isEditMode,
                     canEdit,
+                    isHighlighted,
                     onNodeClick,
                     onEditNode,
                     onToggleCollapse: toggleCollapse
@@ -566,15 +572,16 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
 
             // 5. OIA (Gerência Técnica Geral OIA) - Espinha Vertical Única
             if (oiaNode) {
+                const xOia = X_TRONCO + ((getNodeWidth(rootNode) - getNodeWidth(oiaNode)) / 2);
                 createEdge(routerJunctionId, oiaNode.id, `edge-theme-${oiaNode.tipo}`, 'bottom', null, 'straightVertical');
-                addNode(oiaNode, X_TRONCO, diretoriasY);
+                addNode(oiaNode, xOia, diretoriasY);
 
                 if (!collapsedNodes.has(oiaNode.id) && oiaNode.children && oiaNode.children.length > 0) {
                     let currentOiaY = diretoriasY + getNodeHeight(oiaNode) + RANK_SEP;
                     let prevOiaId = oiaNode.id;
 
                     oiaNode.children.forEach((c, idx) => {
-                        addNode(c, X_TRONCO, currentOiaY);
+                        addNode(c, xOia, currentOiaY);
                         if (idx === 0) {
                             createEdge(prevOiaId, c.id, `edge-theme-${c.tipo}`, null, null, 'straightVertical');
                         } else {
@@ -750,22 +757,16 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                     } else if (node.id === 120) {
                         // =========================================================
                         // DIRETORIA DE TECNOLOGIA E INOVAÇÃO (120)
-                        // ESPINHA MESTRA COM RECUO DE 40px E GAP VERTICAL DE 45px
+                        // ESPINHA MESTRA COM ALINHAMENTO DE PRUMO E GAP VERTICAL DE 38px
                         // =========================================================
-                        const heightTI = getNodeHeight(node); // 105px
-                        const widthTI = getNodeWidth(node);   // 220px
+                        const gerenciasX = x; // Prumo perfeito com a TI (largura 250px)
+                        const masterSpineX = gerenciasX - 40; // Haste mestra com offset de 40px à esquerda
 
-                        // 1. Alinhamento geométrico das gerências: centralizadas sob a TI (width 200px -> X = x + 10)
-                        const gerenciasX = x + ((widthTI - 200) / 2); // Todos compartilham RIGOROSAMENTE X = x + 10px
+                        // Gap vertical mínimo de 38px entre a pílula inferior da TI e o topo do 1º card ("BI e Dados")
+                        let currentTiY = diretoriasY + EFFECTIVE_NODE_HEIGHT + VERTICAL_GAP; // 148px abaixo de diretoriasY
 
-                        // 2. Haste vertical mestra com offset estrito de exatamente 40px à esquerda da borda das gerências
-                        const masterSpineX = gerenciasX - 40; // x - 30px
-
-                        // 3. Gap vertical mínimo de 45px entre a base da TI e o topo do 1º card ("BI e Dados")
-                        let currentTiY = diretoriasY + heightTI + 45;
-
-                        // 4. Ponto de dobra em 90°: desce 20px verticalmente do Position.Bottom da TI antes de virar para a esquerda
-                        const turnY = diretoriasY + heightTI + 20;
+                        // Ponto de dobra em 90°: desce 20px verticalmente da TI antes de virar para a esquerda
+                        const turnY = diretoriasY + CARD_BASE_HEIGHT + 20;
 
                         // Junction do ponto de dobra de 90°
                         const tiTurnJuncId = `ti_bus_turn_${node.id}`;
@@ -776,7 +777,7 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                             data: { isCollapsed: false, hasChildren: false }
                         });
 
-                        // 5. Aresta principal de saída da TI (120): desce 20px e vira 90° à esquerda até a haste mestra
+                        // Aresta principal de saída da TI (120): desce 20px e vira 90° à esquerda até a haste mestra
                         createEdge(
                             node.id,
                             tiTurnJuncId,
@@ -789,11 +790,10 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                         let lastMasterJuncId = tiTurnJuncId;
 
                         node.children.forEach((gerencia) => {
-                            const gerenciaHeight = getNodeHeight(gerencia);
-                            const gerenciaCenterY = currentTiY + (gerenciaHeight / 2);
+                            const gerenciaCenterY = currentTiY + (CARD_BASE_HEIGHT / 2); // 47px no centro do card base
                             const masterJuncId = `ti_master_junc_${gerencia.id}`;
 
-                            // Junction na haste mestre alinhada RIGOROSAMENTE ao centro vertical da gerência (Y_haste === Y_card)
+                            // Junction na haste mestre alinhada ao centro vertical da gerência (Y_haste === Y_card)
                             newNodes.push({
                                 id: masterJuncId,
                                 type: 'junction',
@@ -811,10 +811,10 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                                 'straightVertical'
                             );
 
-                            // Card da Gerência posicionado no prumo perfeito gerenciasX (x + 10)
+                            // Card da Gerência posicionado
                             addNode(gerencia, gerenciasX, currentTiY);
 
-                            // Braço horizontal 100% reto a 180° (straightHorizontal) conectando da haste para Position.Left
+                            // Braço horizontal 100% reto a 180° conectando da haste para Position.Left
                             createEdge(
                                 masterJuncId,
                                 gerencia.id,
@@ -824,12 +824,12 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                                 'straightHorizontal'
                             );
 
-                            let gerenciaSubtreeH = gerenciaHeight;
+                            let gerenciaSubtreeH = STEP_Y; // 148px se recolhido (110px card + 38px gap)
 
-                            // Nível 2: Paternidade Direta do Nó Pai (gerência) aos Filhos (apoios/equipes)
+                            // Nível 2: Filhos da gerência (apoios/equipes)
                             if (!collapsedNodes.has(gerencia.id) && gerencia.children && gerencia.children.length > 0) {
                                 const subCardsX = gerenciasX + 80;
-                                let currentSubY = currentTiY + gerenciaHeight + RANK_SEP;
+                                let currentSubY = currentTiY + STEP_Y; // 148px abaixo do topo da gerência
 
                                 gerencia.children.forEach((subC) => {
                                     addNode(subC, subCardsX, currentSubY);
@@ -843,14 +843,15 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
                                         'stepLTurn'
                                     );
 
-                                    currentSubY += getNodeHeight(subC) + RANK_SEP;
+                                    const subCHeight = (subC.children && subC.children.length > 0) ? EFFECTIVE_NODE_HEIGHT : CARD_BASE_HEIGHT;
+                                    currentSubY += subCHeight + VERTICAL_GAP;
                                 });
 
                                 gerenciaSubtreeH = currentSubY - currentTiY;
                             }
 
                             lastMasterJuncId = masterJuncId;
-                            currentTiY += gerenciaSubtreeH + RANK_SEP;
+                            currentTiY += gerenciaSubtreeH;
                         });
 
                     } else if (node.id === 80) {
@@ -1130,7 +1131,7 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
             }
         }, 50);
 
-    }, [initialTree, collapsedNodes, measureSubtree, toggleCollapse, onNodeClick, setNodes, setEdges, fitView, setCenter, getViewport]);
+    }, [initialTree, collapsedNodes, highlightedNodeId, measureSubtree, toggleCollapse, onNodeClick, setNodes, setEdges, fitView, setCenter, getViewport]);
 
     useEffect(() => {
         initializeCollapsedState();
@@ -1142,10 +1143,88 @@ export function useOrganograma(initialTree, onNodeClick, isEditMode = false, onE
         }
     }, [buildFlowData]);
 
+    // Expandir toda a estrutura do organograma
+    const expandAll = useCallback(() => {
+        setCollapsedNodes(new Set());
+        setTimeout(() => {
+            fitView({ duration: 600 });
+        }, 80);
+    }, [fitView]);
+
+    // Recolher toda a estrutura (mantendo apenas Co-CEOs visíveis)
+    const collapseAll = useCallback(() => {
+        if (!initialTree || initialTree.length === 0) return;
+        const allParentIds = new Set();
+        const collectParents = (node) => {
+            if (node.children && node.children.length > 0) {
+                allParentIds.add(node.id);
+                node.children.forEach(collectParents);
+            }
+        };
+        initialTree.forEach(root => collectParents(root));
+        setCollapsedNodes(allParentIds);
+        setTimeout(() => {
+            fitView({ duration: 600 });
+        }, 80);
+    }, [initialTree, fitView]);
+
+    // Focar e centralizar em um nó via Busca Global com expansão de ancestrais e animação de pulso
+    const focusNode = useCallback((targetId) => {
+        if (!targetId) return;
+        const numId = typeof targetId === 'number' ? targetId : parseInt(targetId, 10);
+        
+        // 1. Expansão recursiva de todos os ancestrais do nó pesquisado até a raiz
+        const parentsToExpand = new Set();
+        const findAncestors = (currId) => {
+            const node = allNodesFlat.find(n => n.id === currId);
+            if (node && node.parent_id !== null && node.parent_id !== undefined) {
+                parentsToExpand.add(node.parent_id);
+                findAncestors(node.parent_id);
+            }
+        };
+        findAncestors(numId);
+
+        // Desbloqueia e expande o caminho do Co-CEO até o nó pesquisado
+        setCollapsedNodes(prev => {
+            const next = new Set(prev);
+            let changed = false;
+            parentsToExpand.forEach(pId => {
+                if (next.has(pId)) {
+                    next.delete(pId);
+                    changed = true;
+                }
+            });
+            return changed ? next : prev;
+        });
+
+        // 2. Dispara a animação de pulso luminoso por 2.5 segundos (2500ms)
+        setHighlightedNodeId(numId);
+        setTimeout(() => {
+            setHighlightedNodeId(null);
+        }, 2500);
+
+        // 3. Recalcula as coordenadas e move a câmera via getNodes() do React Flow após a renderização
+        setTimeout(() => {
+            const currentNodes = getNodes ? getNodes() : [];
+            const targetNode = currentNodes.find(n => String(n.id) === String(numId));
+            if (targetNode) {
+                const width = targetNode.measured?.width || targetNode.width || getNodeWidth(targetNode.data) || 250;
+                const height = targetNode.measured?.height || targetNode.height || getNodeHeight(targetNode.data) || 90;
+                const centerX = targetNode.position.x + (width / 2);
+                const centerY = targetNode.position.y + (height / 2);
+                setCenter(centerX, centerY, { zoom: 1.15, duration: 800 });
+            }
+        }, 150);
+    }, [allNodesFlat, getNodes, setCenter]);
+
+
     return {
         nodes,
         edges,
         onNodesChange,
-        onEdgesChange
+        onEdgesChange,
+        expandAll,
+        collapseAll,
+        focusNode
     };
 }

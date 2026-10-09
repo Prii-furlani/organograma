@@ -57,10 +57,21 @@ function MindMapNode({ data }) {
     const childrenCount = data.childrenCount || 0;
     const isEditMode = data.isEditMode;
     const canEdit = data.canEdit;
+    const isHighlighted = data.isHighlighted;
 
     // Define a classe semântica de nível hierárquico e tema sem CSS inline
     const themeClass = getLevelClasses(data.tipo);
     const collapseClass = isCollapsed ? 'node-collapsed' : 'node-expanded';
+    const highlightClass = isHighlighted ? 'node-highlighted jhe-node-highlighted' : '';
+
+    // Linha 2 (Descrição) e Linha 3 (Nível • Responsável) — suprimidas quando vazias
+    const descricaoTexto = data.descricao && String(data.descricao).trim() !== ''
+        ? String(data.descricao).trim()
+        : '';
+    const nivelTexto = data.nivel_nome ? String(data.nivel_nome).trim() : '';
+    const responsavelTexto = data.responsavel ? String(data.responsavel).trim() : '';
+    const metaTexto = [nivelTexto, responsavelTexto].filter(Boolean).join(' • ');
+
 
     // Determina a classe de escopo RBAC no Modo Edição
     let scopeClass = '';
@@ -76,22 +87,33 @@ function MindMapNode({ data }) {
         }
     }
 
-    // Layout especial para o card dos Co-CEOs
-    if (data.tipo === 'ceo' && data.lideres_json && Array.isArray(data.lideres_json)) {
+    // Layout especial harmonizado para o card dos Co-CEOs
+    if (data.tipo === 'ceo') {
+        const leaders = (data.lideres_json && Array.isArray(data.lideres_json) && data.lideres_json.length > 0)
+            ? data.lideres_json
+            : [
+                { nome: 'Dr. Hélio', initials: 'DH' },
+                { nome: 'Dr. Viol', initials: 'DV' }
+            ];
+
         return (
             <div 
-                className={`jhe-node-card node-ceo-card ${themeClass} ${collapseClass} ${scopeClass}`}
+                className={`jhe-ceo-card ${collapseClass} ${scopeClass} ${highlightClass}`}
                 onClick={() => {
                     if (data.onNodeClick) data.onNodeClick(data);
                 }}
                 title={nodeTooltip}
             >
-                <div className="node-accent-bar" />
+                {/* Faixa superior integrada aos cantos superiores */}
+                <div className="jhe-ceo-accent-bar" />
+                
+                {/* Connector Handle Superior */}
                 <Handle type="target" position={Position.Top} className="node-handle node-handle-top" />
                 
+                {/* Botão Flutuante de Edição Rápida no Modo Edição */}
                 {isEditMode && canEdit && (
                     <button
-                        className="node-quick-edit-btn"
+                        className="jhe-ceo-quick-edit-btn"
                         onClick={(e) => {
                             e.stopPropagation();
                             if (data.onEditNode) data.onEditNode(data);
@@ -102,51 +124,69 @@ function MindMapNode({ data }) {
                     </button>
                 )}
 
-                <h3 className="node-title ceo-title">
-                    {data.titulo}
-                </h3>
+                {isEditMode && !canEdit && (
+                    <div className="node-locked-badge" title="Área sob gestão de outra liderança (somente leitura)">
+                        <Lock size={12} />
+                    </div>
+                )}
+
+                {/* Topo Central: Título e Subtítulo Institucional */}
+                <div className="jhe-ceo-header">
+                    <h3 className="jhe-ceo-title">
+                        {data.titulo || "Co-CEOs"}
+                    </h3>
+                    <div className="jhe-ceo-subtitle">
+                        DIREÇÃO EXECUTIVA
+                    </div>
+                </div>
                 
-                <div className="ceo-leaders-container">
-                    {data.lideres_json.map((lider, idx) => {
-                        const fallbackInitials = idx === 0 ? 'DH' : 'DV';
+                {/* Bloco dos Sócios: Dois Avatares Circulares (46x46px) com Gap de 36px */}
+                <div className="jhe-ceo-leaders-grid">
+                    {leaders.map((lider, idx) => {
+                        const fallbackInitials = lider.initials || (idx === 0 ? 'DH' : 'DV');
                         return (
-                            <div key={idx} className="ceo-leader-item">
-                                <div className="ceo-avatar-wrapper squircle">
-                                    <img 
-                                        src={lider.foto} 
-                                        alt={lider.nome} 
-                                        className="ceo-avatar" 
-                                        onError={(e) => { 
-                                            e.target.style.display = 'none'; 
-                                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; 
-                                        }} 
-                                    />
-                                    <div className="ceo-avatar-fallback">
+                            <div key={idx} className="jhe-ceo-leader-item">
+                                <div className="jhe-ceo-avatar-circle">
+                                    {lider.foto ? (
+                                        <img 
+                                            src={lider.foto} 
+                                            alt={lider.nome || 'Líder'} 
+                                            className="jhe-ceo-avatar-img" 
+                                            onError={(e) => { 
+                                                e.target.classList.add('has-error'); 
+                                            }} 
+                                        />
+                                    ) : null}
+                                    <div className="jhe-ceo-avatar-fallback">
                                         {fallbackInitials}
                                     </div>
                                 </div>
-                                <span className="ceo-name">{lider.nome}</span>
+                                <span className="jhe-ceo-leader-name">{lider.nome}</span>
                             </div>
                         );
                     })}
                 </div>
 
+                {/* Pílula Inferior com Contagem (∨ 10) */}
                 {hasChildren && (
-                    <div className="node-pill-badge-container">
+                    <div className="jhe-ceo-pill-badge-container">
                         <button 
-                            className="node-pill-btn"
+                            className="jhe-ceo-pill-btn"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (data.onToggleCollapse) data.onToggleCollapse(data.id);
                             }}
                             title={isCollapsed ? "Expandir subordinados" : "Recolher subordinados"}
                         >
-                            <span className="pill-icon">{isCollapsed ? <ChevronRight size={12} strokeWidth={3}/> : <ChevronDown size={12} strokeWidth={3}/>}</span>
-                            <span className="pill-count">{childrenCount}</span>
+                            <span className="jhe-ceo-pill-icon">
+                                {isCollapsed ? <ChevronRight size={12} strokeWidth={3}/> : <ChevronDown size={12} strokeWidth={3}/>}
+                            </span>
+                            <span className="jhe-ceo-pill-count">{childrenCount}</span>
                         </button>
                     </div>
                 )}
 
+                {/* Connector Handle Inferior */}
                 <Handle type="source" position={Position.Bottom} className="node-handle node-handle-bottom" />
             </div>
         );
@@ -155,7 +195,7 @@ function MindMapNode({ data }) {
     // Layout padrão para os demais nós
     return (
         <div 
-            className={`jhe-node-card node-standard-card ${themeClass} ${collapseClass} ${scopeClass}`}
+            className={`jhe-node-card node-standard-card ${themeClass} ${collapseClass} ${scopeClass} ${highlightClass}`}
             onClick={() => {
                 if (data.onNodeClick) data.onNodeClick(data);
             }}
@@ -192,24 +232,22 @@ function MindMapNode({ data }) {
                 </div>
             )}
 
-            {/* Layout Interno - Duas Colunas (Icone + Textos) */}
-            <div className="node-content-horizontal">
-                {/* Coluna Esquerda: Squircle */}
-                <div className="node-avatar-block squircle">
-                    <IconComponent size={20} className="node-avatar-icon" />
+            {/* Layout Interno Padronizado: Squircle à esquerda + Bloco de Texto (3 linhas) à direita */}
+            <div className="jhe-node-body">
+                <div className="jhe-node-icon-box">
+                    <IconComponent size={20} strokeWidth={2.25} />
                 </div>
                 
-                {/* Coluna Direita: Textos Hierárquicos */}
-                <div className="node-text-block">
-                    <div className="node-title">{data.titulo}</div>
-                    
-                    {data.descricao || data.responsavel ? (
-                        <div className="node-responsavel-text">{data.descricao || data.responsavel}</div>
-                    ) : (
-                        <div className="node-responsavel-text empty-responsavel">—</div>
+                <div className="jhe-node-text">
+                    <div className="jhe-node-name">{data.titulo}</div>
+
+                    {descricaoTexto && (
+                        <div className="jhe-node-desc">{descricaoTexto}</div>
                     )}
-                    
-                    <div className="node-area-text">{data.tipo || 'Área'}</div>
+
+                    {metaTexto && (
+                        <div className="jhe-node-meta">{metaTexto}</div>
+                    )}
                 </div>
             </div>
 

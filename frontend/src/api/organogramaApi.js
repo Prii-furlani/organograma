@@ -80,6 +80,17 @@ export const deleteNode = async (id) => {
 };
 
 /**
+ * Move um nó para um novo nó pai (reparenting) e recalcula níveis.
+ * @param {number|string} id - ID do nó a ser movido
+ * @param {number|string} parent_id - ID do novo nó pai
+ * @returns {Promise<Object>} Resposta da movimentação
+ */
+export const moveNode = async (id, parent_id) => {
+    const response = await api.patch(`/organograma/nos/${id}/mover`, { parent_id });
+    return response.data;
+};
+
+/**
  * Busca a lista de usuários cadastrados (apenas Admin).
  */
 export const fetchUsersList = async () => {
@@ -110,3 +121,53 @@ export const deleteUserData = async (id) => {
     const response = await api.delete(`/usuarios/${id}`);
     return response.data;
 };
+
+/**
+ * Redefine a senha de um usuário para o padrão provisório JHE@123 (apenas Admin).
+ */
+export const resetUserPassword = async (id) => {
+    const response = await api.patch(`/usuarios/${id}/reset-senha`);
+    return response.data;
+};
+
+/**
+ * Define a nova senha no primeiro acesso do colaborador.
+ */
+export const definirPrimeiraSenha = async (nova_senha, confirmacao_senha, usuario_id, email, customToken) => {
+    const token = customToken || localStorage.getItem('organograma_token') || sessionStorage.getItem('organograma_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const response = await api.post('/auth/definir-primeira-senha', {
+        nova_senha,
+        confirmacao_senha,
+        usuario_id,
+        email
+    }, { headers });
+    return response.data;
+};
+
+/**
+ * Busca o Termo de Serviço ativo/vigente no banco de dados.
+ */
+export const fetchTermoVigente = async () => {
+    const response = await api.get('/termos/vigente');
+    return response.data;
+};
+
+/**
+ * Registra o aceite do Termo de Serviço pelo usuário logado.
+ */
+export const aceitarTermo = async (versao) => {
+    const response = await api.post('/termos/aceitar', { versao });
+    return response.data;
+};
+
+/**
+ * Atualiza ou insere novos Termos de Serviço (Administrador Global).
+ */
+export const updateTermoAdmin = async (termoData) => {
+    const response = await api.put('/termos/admin', termoData);
+    return response.data;
+};
+
+
